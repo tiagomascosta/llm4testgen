@@ -17,6 +17,8 @@ output/
 
 # Optional: inputs (if they’re local/test files)
 input/
+system_architecture/
+image/
 
 # Other files
 mut_extraction_flowchart.md
