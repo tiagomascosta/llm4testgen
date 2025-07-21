@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Virtual environments
+.venv/
+venv/
+
+# Editor settings
+.vscode/
+
+# Logs and outputs
+logs/
+output/
+
+# Optional: inputs (if they’re local/test files)
+input/
+
+# Other files
+mut_extraction_flowchart.md
+external_dependency_extraction_flowchart.md
+environment_setup_mermaid.html
+build_config_flowchart.md

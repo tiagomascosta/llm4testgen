@@ -1,0 +1,133 @@
+2025-06-10 17:52:00,055 - INFO - 
+[STEP] Repository Setup
+2025-06-10 17:52:00,055 - INFO -   └─ Cloning Repository
+2025-06-10 17:52:00,056 - INFO - Removing existing directory: /home/tiago/Desktop/Faculdade/Thesis/implementation/final_implementation/input/traccar
+2025-06-10 17:52:00,148 - INFO - Cloning repository: https://github.com/traccar/traccar.git
+2025-06-10 17:52:03,241 - INFO - Checking out commit: 9ceecf357132989390e8bb18160338b27539eaaa
+2025-06-10 17:52:03,460 - INFO -     ✅ Repository cloned to: /home/tiago/Desktop/Faculdade/Thesis/implementation/final_implementation/input/traccar
+2025-06-10 17:52:03,460 - INFO - 
+[STEP] Repository Analysis
+2025-06-10 17:52:03,461 - INFO -   └─ Detecting Build System
+2025-06-10 17:52:03,461 - INFO - Using './gradlew' for building (Unix wrapper found and executable).
+2025-06-10 17:52:03,462 - INFO - Found JDK 11 in system: /usr/lib/jvm/java-11-openjdk-amd64
+2025-06-10 17:52:03,463 - INFO -     ✅ Detected build system: gradle
+2025-06-10 17:52:03,463 - INFO -   └─ Detecting Java Version
+2025-06-10 17:52:03,463 - INFO -     Detected Java version: 4
+2025-06-10 17:52:03,464 - INFO -   └─ Analyzing Dependencies
+2025-06-10 17:52:03,464 - INFO - Configuring Gradle build file...
+2025-06-10 17:52:03,465 - INFO - Detected JUnit 4, ensuring dependencies are complete...
+2025-06-10 17:52:03,466 - INFO - Adding JaCoCo configuration...
+2025-06-10 17:52:03,466 - INFO - Adding missing dependencies...
+2025-06-10 17:52:03,467 - INFO - Detected Java version: 11
+2025-06-10 17:52:03,467 - INFO -     ✅ Build configuration updated
+2025-06-10 17:52:03,468 - INFO - 
+[STEP] Scaffold Generation
+2025-06-10 17:52:03,468 - INFO -   └─ Extracting Method Implementation
+2025-06-10 17:52:03,503 - INFO -   └─ Extracting Dependencies
+2025-06-10 17:52:03,699 - INFO -     
+=== Raw Dependencies by Category ===
+2025-06-10 17:52:03,699 - INFO -     
+  external_instances:
+2025-06-10 17:52:03,699 - INFO -         – cellTower.setSignalStrength(1)
+2025-06-10 17:52:03,700 - INFO -         – deviceSession.getDeviceId(0)
+2025-06-10 17:52:03,700 - INFO -         – new Network(1)
+2025-06-10 17:52:03,700 - INFO -         – new Parser(2)
+2025-06-10 17:52:03,700 - INFO -         – new Position(1)
+2025-06-10 17:52:03,700 - INFO -         – parser.hasNext(0)
+2025-06-10 17:52:03,700 - INFO -         – parser.hasNext(1)
+2025-06-10 17:52:03,700 - INFO -         – parser.matches(0)
+2025-06-10 17:52:03,700 - INFO -         – parser.next(0)
+2025-06-10 17:52:03,700 - INFO -         – parser.nextCoordinate(0)
+2025-06-10 17:52:03,700 - INFO -         – parser.nextDateTime(0)
+2025-06-10 17:52:03,700 - INFO -         – parser.nextDouble(0)
+2025-06-10 17:52:03,700 - INFO -         – parser.nextHexInt(0)
+2025-06-10 17:52:03,701 - INFO -         – parser.nextHexLong(0)
+2025-06-10 17:52:03,701 - INFO -         – parser.nextInt(0)
+2025-06-10 17:52:03,701 - INFO -         – position.set(2)
+2025-06-10 17:52:03,701 - INFO -         – position.setCourse(1)
+2025-06-10 17:52:03,701 - INFO -         – position.setDeviceId(1)
+2025-06-10 17:52:03,701 - INFO -         – position.setLatitude(1)
+2025-06-10 17:52:03,701 - INFO -         – position.setLongitude(1)
+2025-06-10 17:52:03,701 - INFO -         – position.setNetwork(1)
+2025-06-10 17:52:03,701 - INFO -         – position.setSpeed(1)
+2025-06-10 17:52:03,701 - INFO -         – position.setTime(1)
+2025-06-10 17:52:03,701 - INFO -         – position.setValid(1)
+2025-06-10 17:52:03,701 - INFO -         – sentence.substring(2)
+2025-06-10 17:52:03,702 - INFO -     
+  static_methods:
+2025-06-10 17:52:03,702 - INFO -         – BitUtil.check(2)
+2025-06-10 17:52:03,702 - INFO -         – CellTower.from(4)
+2025-06-10 17:52:03,702 - INFO -         – CellTower.fromLacCid(3)
+2025-06-10 17:52:03,702 - INFO -         – Integer.parseInt(2)
+2025-06-10 17:52:03,702 - INFO -         – UnitsConverter.knotsFromKph(1)
+2025-06-10 17:52:03,702 - INFO -     
+  static_constants:
+2025-06-10 17:52:03,702 - INFO -         – PATTERN4
+2025-06-10 17:52:03,702 - INFO -         – Position.ALARM_GEOFENCE_ENTER
+2025-06-10 17:52:03,703 - INFO -         – Position.ALARM_GEOFENCE_EXIT
+2025-06-10 17:52:03,703 - INFO -         – Position.ALARM_GPS_ANTENNA_CUT
+2025-06-10 17:52:03,703 - INFO -         – Position.ALARM_OVERSPEED
+2025-06-10 17:52:03,703 - INFO -         – Position.ALARM_SOS
+2025-06-10 17:52:03,703 - INFO -         – Position.KEY_ALARM
+2025-06-10 17:52:03,703 - INFO -         – Position.KEY_BATTERY
+2025-06-10 17:52:03,703 - INFO -         – Position.KEY_CHARGE
+2025-06-10 17:52:03,703 - INFO -         – Position.KEY_HDOP
+2025-06-10 17:52:03,704 - INFO -         – Position.KEY_IGNITION
+2025-06-10 17:52:03,704 - INFO -         – Position.KEY_ODOMETER
+2025-06-10 17:52:03,704 - INFO -         – Position.KEY_POWER
+2025-06-10 17:52:03,704 - INFO -         – Position.KEY_SATELLITES
+2025-06-10 17:52:03,704 - INFO -         – Position.KEY_STATUS
+2025-06-10 17:52:03,704 - INFO -         – Position.PREFIX_ADC
+2025-06-10 17:52:03,704 - INFO -         – Position.PREFIX_OUT
+2025-06-10 17:52:03,704 - INFO -         – Position.PREFIX_TEMP
+2025-06-10 17:52:03,704 - INFO -     
+  superclass_methods:
+2025-06-10 17:52:03,704 - INFO -         – getConfig(0)
+2025-06-10 17:52:03,704 - INFO -         – getDeviceSession(3)
+2025-06-10 17:52:03,704 - INFO -         – getProtocolName(0)
+2025-06-10 17:52:03,705 - INFO -     
+  self_helpers:
+2025-06-10 17:52:03,705 - INFO -         – decodeAlarm4(1)
+2025-06-10 17:52:03,705 - INFO -     
+=== Flow‐Control Dependencies (to be excluded) ===
+2025-06-10 17:52:03,705 - INFO -         × BitUtil.check(2)
+2025-06-10 17:52:03,705 - INFO -         × parser.hasNext(0)
+2025-06-10 17:52:03,705 - INFO -         × parser.hasNext(1)
+2025-06-10 17:52:03,705 - INFO -         × parser.matches(0)
+2025-06-10 17:52:03,705 - INFO -     → Effective dependencies = raw deps minus flow‐control
+
+2025-06-10 17:52:03,705 - INFO -     
+=== Dependency Definitions ===
+2025-06-10 17:52:03,709 - INFO -         channel → Channel
+2025-06-10 17:52:03,709 - INFO -         remoteAddress → SocketAddress
+2025-06-10 17:52:03,709 - INFO -         sentence → String
+2025-06-10 17:52:03,709 - INFO -         type → int
+2025-06-10 17:52:03,710 - INFO -         parser → Parser
+2025-06-10 17:52:03,710 - INFO -         deviceSession → DeviceSession
+2025-06-10 17:52:03,710 - INFO -         position → Position
+2025-06-10 17:52:03,710 - INFO -         status → long
+2025-06-10 17:52:03,710 - INFO -         lac → int
+2025-06-10 17:52:03,710 - INFO -         cid → int
+2025-06-10 17:52:03,710 - INFO -         cellTower → CellTower
+2025-06-10 17:52:03,710 - INFO -         mnc → int
+2025-06-10 17:52:03,710 - INFO -         mcc → int
+2025-06-10 17:52:03,710 - INFO -         PATTERN1 → Pattern
+2025-06-10 17:52:03,711 - INFO -         PATTERN2 → Pattern
+2025-06-10 17:52:03,711 - INFO -         PATTERN3 → Pattern
+2025-06-10 17:52:03,711 - INFO -         PATTERN4 → Pattern
+2025-06-10 17:52:03,711 - INFO -         PATTERN_OBD → Pattern
+2025-06-10 17:52:03,711 - INFO -     ===========================
+
+2025-06-10 17:52:03,711 - INFO -   └─ Generating Test Scaffold
+2025-06-10 17:52:03,723 - INFO -   └─ Saving and Compiling Scaffold
+2025-06-10 17:52:03,725 - INFO - JAVA_HOME before compilation: /usr/lib/jvm/java-17-openjdk-amd64
+2025-06-10 17:52:03,726 - INFO - Using provided JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64 for compilation
+2025-06-10 17:52:30,448 - INFO -     ✅ Test scaffold compiled successfully
+2025-06-10 17:52:30,449 - INFO - 
+[STEP] Method Under Test Analysis
+2025-06-10 17:52:30,449 - INFO -   └─ Building Scenario List
+2025-06-10 17:52:30,454 - INFO -   └─ Generating Scenarios
+2025-06-10 17:52:30,460 - WARNING - Request failed: HTTPConnectionPool(host='localhost', port=11435): Max retries exceeded with url: /api/chat (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x7b20e1953650>: Failed to establish a new connection: [Errno 111] Connection refused')), retrying (attempt 2/3)
+2025-06-10 17:52:31,465 - WARNING - Request failed: HTTPConnectionPool(host='localhost', port=11435): Max retries exceeded with url: /api/chat (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x7b20e1953740>: Failed to establish a new connection: [Errno 111] Connection refused')), retrying (attempt 3/3)
+2025-06-10 17:52:32,469 - ERROR - All 3 attempts failed. Last error: HTTPConnectionPool(host='localhost', port=11435): Max retries exceeded with url: /api/chat (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x7b20e17c4260>: Failed to establish a new connection: [Errno 111] Connection refused'))
+2025-06-10 17:52:32,469 - ERROR -     ❌ Error: Failed to get response from Ollama after 3 attempts
