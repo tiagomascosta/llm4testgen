@@ -22,3 +22,4 @@ external_dependency_extraction_flowchart.md
 environment_setup_mermaid.html
 build_config_flowchart.md
 compile_fix_loop_flowchart.md
+runtime_fix_loop_flowchart.md
