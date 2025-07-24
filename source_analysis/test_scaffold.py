@@ -327,7 +327,6 @@ def generate_test_scaffold(
         "import java.time.temporal.*;",
         "import java.time.zone.*;",
         "import java.time.chrono.*;",
-        "import java.time.zone.*;",
 
         # Java IO (commonly used in decoders/parsers)
         "import java.io.InputStream;",
