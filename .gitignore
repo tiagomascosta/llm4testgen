@@ -15,6 +15,7 @@ output/
 input/
 system_architecture/
 image/
+experiments/
 
 # Other files
 mut_extraction_flowchart.md
