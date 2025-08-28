@@ -17,7 +17,7 @@ class OllamaClient:
         non_code_model: str,
         max_retries: int = 3,
         retry_delay: float = 5.0,
-        timeout: int = 60,
+        timeout: int = 90,
         json_logger=None
     ):
         """
