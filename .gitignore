@@ -17,6 +17,7 @@ system_architecture/
 image/
 experiments/
 source_analysis/__pycache__/
+utils/__pycache__/
 
 # Other files
 mut_extraction_flowchart.md

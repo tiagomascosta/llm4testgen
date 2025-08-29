@@ -100,7 +100,8 @@ class TestGenerationLogger:
             
             "final_test_suite": {
                 "tests_in_final_test_suite": None,
-                "final_test_names": []
+                "final_test_names": [],
+                "assertions": None
             },
             
             "bug_assessment": {
@@ -296,6 +297,10 @@ class TestGenerationLogger:
         """Update LLM metrics from OllamaClient."""
         self.data["llm_requests"] = request_count
         self.data["llm_response_time"] = total_response_time
+    
+    def update_assertion_count(self, assertion_count: int):
+        """Update assertion count in the final test suite."""
+        self.data["final_test_suite"]["assertions"] = assertion_count
     
     def save_report(self, output_dir: Path, filename: str = None):
         """

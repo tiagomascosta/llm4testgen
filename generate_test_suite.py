@@ -1192,6 +1192,11 @@ def main():
                             tests_in_final_test_suite=len(passing_tests),
                             final_test_names=final_test_names
                         )
+                        
+                        # Count assertions in the final test suite
+                        from utils.assertion_counter import count_assertions_in_final_test_suite
+                        assertion_count = count_assertions_in_final_test_suite(structured_output_dir)
+                        json_logger.update_assertion_count(assertion_count)
                     else:
                         print_warning("No passing tests to save - skipping coverage analysis")
         
@@ -1361,6 +1366,11 @@ def main():
                 print_error("Test file not found for display")
         else:
             print_warning("No successful test methods were generated")
+            
+            # Count assertions even when no tests are generated (should be 0)
+            from utils.assertion_counter import count_assertions_in_final_test_suite
+            assertion_count = count_assertions_in_final_test_suite(structured_output_dir)
+            json_logger.update_assertion_count(assertion_count)
         
         # Get LLM metrics and update JSON logger
         llm_metrics = llm_client.get_metrics()
