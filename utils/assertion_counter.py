@@ -34,63 +34,8 @@ def count_assertions_in_test_file(file_path: Path) -> int:
         r'\bassertTimeoutPreemptively\b',
         r'\bassertAll\b',
         
-        # Hamcrest (specific)
-        r'\bassertThat\b',
-        
         # TestNG specific
         r'\bassertNoThrows\b',
-        
-        # AssertJ Fluent Assertions (specific, no overlap)
-        r'\.isEqualTo\b',
-        r'\.isNotEqualTo\b',
-        r'\.isNull\b',
-        r'\.isNotNull\b',
-        r'\.isTrue\b',
-        r'\.isFalse\b',
-        r'\.isSameAs\b',
-        r'\.isNotSameAs\b',
-        r'\.isInstanceOf\b',
-        r'\.isNotInstanceOf\b',
-        r'\.isEmpty\b',
-        r'\.isNotEmpty\b',
-        r'\.hasSize\b',
-        r'\.contains\b',
-        r'\.doesNotContain\b',
-        r'\.startsWith\b',
-        r'\.endsWith\b',
-        r'\.isGreaterThan\b',
-        r'\.isLessThan\b',
-        r'\.isBetween\b',
-        r'\.isCloseTo\b',
-        r'\.isPositive\b',
-        r'\.isNegative\b',
-        r'\.isZero\b',
-        r'\.isOne\b',
-        
-        # Hamcrest matchers (used with assertThat)
-        r'\bis\b',
-        r'\bequalTo\b',
-        r'\bnot\b',
-        r'\bnullValue\b',
-        r'\bnotNullValue\b',
-        r'\binstanceOf\b',
-        r'\bsameInstance\b',
-        r'\bhasSize\b',
-        r'\bhasItem\b',
-        r'\bhasItems\b',
-        r'\bcontains\b',
-        r'\bcontainsInAnyOrder\b',
-        r'\bempty\b',
-        r'\ballOf\b',
-        r'\banyOf\b',
-        r'\beveryItem\b',
-        
-        # Mocking frameworks
-        r'\bverify\b',
-        r'\bwhen\b',
-        r'\bthen\b',
-        r'\bexpect\b',
-        r'\breplay\b',
     ]
     
     total_assertions = 0
@@ -106,11 +51,17 @@ def count_assertions_in_test_suite(test_suite_dir: Path) -> int:
     """Count total assertions across all test files in a test suite."""
     total_assertions = 0
     
+    print(f"🔍 Scanning directory: {test_suite_dir}")
+    
     if not test_suite_dir.exists():
+        print(f"❌ Directory does not exist: {test_suite_dir}")
         return 0
     
     # Find all Java test files
-    for test_file in test_suite_dir.glob("**/*.java"):
+    java_files = list(test_suite_dir.glob("**/*.java"))
+    print(f"🔍 Found {len(java_files)} Java files")
+    
+    for test_file in java_files:
         if test_file.is_file():
             file_assertions = count_assertions_in_test_file(test_file)
             total_assertions += file_assertions
@@ -121,10 +72,14 @@ def count_assertions_in_test_suite(test_suite_dir: Path) -> int:
 
 def count_assertions_in_final_test_suite(output_dir: Path) -> int:
     """Count assertions in the final test suite (the one that gets saved to the repository)."""
-    # Look for the final test file in the test_suite directory
-    test_suite_dir = output_dir / "test_suite"
+    # The output_dir is already the test_suite directory
+    test_suite_dir = output_dir
+    
+    print(f"🔍 Looking for test suite in: {test_suite_dir}")
+    print(f"🔍 Directory exists: {test_suite_dir.exists()}")
     
     if not test_suite_dir.exists():
+        print(f"❌ Test suite directory not found: {test_suite_dir}")
         return 0
     
     # Count assertions in all Java files in the test_suite directory
