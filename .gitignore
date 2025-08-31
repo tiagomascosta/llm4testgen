@@ -18,6 +18,12 @@ image/
 experiments/
 source_analysis/__pycache__/
 utils/__pycache__/
+init/__pycache__/
+cli/__pycache__/
+config/__pycache__/
+llm/__pycache__/
+prompting/__pycache__/
+coverage/__pycache__/
 
 # Other files
 mut_extraction_flowchart.md
