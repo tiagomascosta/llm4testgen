@@ -260,7 +260,9 @@ def compile_java_file(test_file: Path, repo_path: Path, java_home: str = None) -
             "-Dcheckstyle.skip=true",
             "-Dspotless.check.skip=true",
             "-Dpmd.skip=true",
-            "-Dfindbugs.skip=true"
+            "-Dfindbugs.skip=true",
+            "-Dsortpom.skip=true",
+            "-Denforcer.skip=true",
         ]
         
         # Add Spring Java Format skip flag if the plugin is present
@@ -288,6 +290,15 @@ def compile_java_file(test_file: Path, repo_path: Path, java_home: str = None) -
             "--no-daemon"
         ]
             
+    # Configure sortpom plugin if it exists (for Maven projects)
+    if is_maven:
+        try:
+            from init.maven import MavenConfig
+            maven_project = MavenConfig(repo_path)
+            maven_project.configure_sortpom_plugin()
+        except Exception as e:
+            print(f"   ⚠️ Warning: Could not configure sortpom plugin: {e}")
+    
     # Run compilation
     try:
         # Set up environment variables for Java

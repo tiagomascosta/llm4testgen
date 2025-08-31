@@ -163,7 +163,7 @@ def compile_fix_loop(
     # Set up compilation command
     if (repo_path / 'pom.xml').exists():
         # Maven - include skip flags to avoid Spotless formatting issues
-        cmd = ["mvn", "compile", "test-compile", "-Dspotless.check.skip=true", "-Dcheckstyle.skip=true", "-Dfindbugs.skip=true","-Dpmd.skip=true", "-Dspring-javaformat.skip=true"]
+        cmd = ["mvn", "clean", "compile", "test-compile", "-Dspotless.check.skip=true", "-Dcheckstyle.skip=true", "-Dfindbugs.skip=true","-Dpmd.skip=true", "-Dspring-javaformat.skip=true", "-Dsortpom.skip=true", "-Denforcer.skip=true"]
     else:
         # Gradle - add --no-daemon flag to make compilation stricter and more consistent with test execution
         cmd = ["./gradlew", "compileTestJava", "--no-daemon"] if (repo_path / "gradlew").exists() else ["gradle", "compileTestJava", "--no-daemon"]

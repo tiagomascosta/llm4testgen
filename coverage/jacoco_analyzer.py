@@ -455,10 +455,10 @@ def run_tests_with_coverage(
                     # Use a simple approach: run the full Maven lifecycle which should handle JaCoCo properly
                     cmd = ["mvn", "clean", "test", "jacoco:report", 
                            f"-Dtest={class_name}", 
-                           "-Dspotless.check.skip=true", "-Dcheckstyle.skip=true", "-Dpmd.skip=true", "-Dfindbugs.skip=true", "-Dspring-javaformat.skip=true"]
+                           "-Dspotless.check.skip=true", "-Dcheckstyle.skip=true", "-Dpmd.skip=true", "-Dfindbugs.skip=true", "-Dspring-javaformat.skip=true", "-Dsortpom.skip=true"]
                 else:
                     cmd = ["mvn", "clean", "test", "jacoco:report", 
-                           "-Dspotless.check.skip=true", "-Dcheckstyle.skip=true", "-Dpmd.skip=true", "-Dfindbugs.skip=true", "-Dspring-javaformat.skip=true"]
+                           "-Dspotless.check.skip=true", "-Dcheckstyle.skip=true", "-Dpmd.skip=true", "-Dfindbugs.skip=true", "-Dspring-javaformat.skip=true", "-Dsortpom.skip=true", "-Denforcer.skip=true"]
             else:
                 # Project doesn't use Surefire, use vanilla JaCoCo approach
                 print("Project doesn't use Surefire plugin, using vanilla JaCoCo approach")
@@ -469,10 +469,10 @@ def run_tests_with_coverage(
                     class_name = test_class.split('.')[-1]
                     cmd = ["mvn", "clean", "test", "jacoco:report", 
                            f"-Dtest={class_name}", 
-                           "-Dspotless.check.skip=true", "-Dcheckstyle.skip=true", "-Dpmd.skip=true", "-Dfindbugs.skip=true", "-Dspring-javaformat.skip=true"]
+                           "-Dspotless.check.skip=true", "-Dcheckstyle.skip=true", "-Dpmd.skip=true", "-Dfindbugs.skip=true", "-Dspring-javaformat.skip=true", "-Dsortpom.skip=true", "-Denforcer.skip=true"]
                 else:
                     cmd = ["mvn", "clean", "test", "jacoco:report", 
-                           "-Dspotless.check.skip=true", "-Dcheckstyle.skip=true", "-Dpmd.skip=true", "-Dfindbugs.skip=true", "-Dspring-javaformat.skip=true"]
+                           "-Dspotless.check.skip=true", "-Dcheckstyle.skip=true", "-Dpmd.skip=true", "-Dfindbugs.skip=true", "-Dspring-javaformat.skip=true", "-Dsortpom.skip=true", "-Denforcer.skip=true"]
             
             # Add JaCoCo skip property overrides to ensure JaCoCo is enabled
             common_jacoco_overrides = [

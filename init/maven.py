@@ -136,7 +136,7 @@ class MavenConfig:
                 
         # If no version is detected, use Java 11 as default since it's a modern LTS version
         # with good compatibility and support
-        logger.warning("No Java version detected in POM file, defaulting to Java 11")
+
         return "11"
         
     def get_dependencies(self) -> List[Dict[str, Any]]:
@@ -220,6 +220,121 @@ class MavenConfig:
 
         self._detected_dependencies[cache_key] = False
         return False
+        
+    def has_sortpom_plugin(self) -> bool:
+        """
+        Check if the project has sortpom-maven-plugin configured.
+        
+        Returns:
+            True if sortpom-maven-plugin is found, False otherwise
+        """
+        # Check cache first
+        cache_key = "sortpom-maven-plugin"
+        if cache_key in self._detected_dependencies:
+            return self._detected_dependencies[cache_key]
+
+        self._load_pom()
+        if self._root is None:
+            logger.error("POM file not loaded or invalid")
+            return False
+
+        # Read the POM file as text
+        try:
+            with open(self.pom_path, 'r', encoding='utf-8') as f:
+                pom_content = f.read()
+        except Exception as e:
+            logger.error(f"Failed to read POM file: {str(e)}")
+            return False
+
+        # Define variations of the sortpom plugin identifier
+        sortpom_variations = [
+            'sortpom-maven-plugin',
+            '<artifactId>sortpom-maven-plugin</artifactId>',
+            '<dependencies:artifactId>sortpom-maven-plugin</dependencies:artifactId>',
+            '"sortpom-maven-plugin"',
+            "'sortpom-maven-plugin'",
+            'sortpom',
+            '<artifactId>sortpom</artifactId>',
+            '<dependencies:artifactId>sortpom</dependencies:artifactId>',
+            '"sortpom"',
+            "'sortpom'",
+            'com.github.ekryd.sortpom'
+        ]
+
+        # Check for any variation
+        for var in sortpom_variations:
+            if var in pom_content:
+                self._detected_dependencies[cache_key] = True
+                return True
+
+        self._detected_dependencies[cache_key] = False
+        return False
+        
+    def configure_sortpom_plugin(self):
+        """
+        Configure the sortpom-maven-plugin to be skippable.
+        Adds skip configuration to existing sortpom plugin.
+        """
+        if not self.has_sortpom_plugin():
+            return
+            
+        self._load_pom()
+        if self._root is None:
+            logger.error("Cannot configure sortpom plugin: POM file not loaded")
+            return
+            
+        # Find the sortpom plugin using the same approach as JaCoCo plugin
+        # First check in the main build section
+        plugins_elem = self._find_element('.//build/plugins')
+        if plugins_elem is not None:
+            for plugin in plugins_elem.findall('plugin', self._ns):
+                group_id = plugin.find('groupId', self._ns)
+                artifact_id = plugin.find('artifactId', self._ns)
+                
+                if (group_id is not None and group_id.text == 'com.github.ekryd.sortpom' and
+                    artifact_id is not None and artifact_id.text == 'sortpom-maven-plugin'):
+                    
+                    # Check if skip configuration already exists
+                    config = plugin.find('configuration', self._ns)
+                    if config is None:
+                        config = ET.SubElement(plugin, '{http://maven.apache.org/POM/4.0.0}configuration')
+                    
+                    skip_elem = config.find('skip', self._ns)
+                    if skip_elem is None:
+                        skip_elem = ET.SubElement(config, '{http://maven.apache.org/POM/4.0.0}skip')
+                        skip_elem.text = '${sortpom.skip}'
+                    
+                    # Save changes
+                    ET.indent(self._tree, space="    ")
+                    self._tree.write(self.pom_path, encoding='utf-8', xml_declaration=True)
+                    return
+        
+        # Also check in profiles
+        profiles = self._root.findall('.//profile', self._ns)
+        for profile in profiles:
+            profile_plugins_elem = profile.find('.//plugins', self._ns)
+            if profile_plugins_elem is not None:
+                for plugin in profile_plugins_elem.findall('plugin', self._ns):
+                    group_id = plugin.find('groupId', self._ns)
+                    artifact_id = plugin.find('artifactId', self._ns)
+                    
+                    if (group_id is not None and group_id.text == 'com.github.ekryd.sortpom' and
+                        artifact_id is not None and artifact_id.text == 'sortpom-maven-plugin'):
+                        
+                        # Check if skip configuration already exists
+                        config = plugin.find('configuration', self._ns)
+                        if config is None:
+                            config = ET.SubElement(plugin, '{http://maven.apache.org/POM/4.0.0}configuration')
+                        
+                        skip_elem = config.find('skip', self._ns)
+                        if skip_elem is None:
+                            skip_elem = ET.SubElement(config, '{http://maven.apache.org/POM/4.0.0}skip')
+                            skip_elem.text = '${sortpom.skip}'
+                        
+                        # Save changes
+                        ET.indent(self._tree, space="    ")
+                        self._tree.write(self.pom_path, encoding='utf-8', xml_declaration=True)
+                        return
         
     def add_junit_dependency(self, version: str = '5.9.2'):
         """
@@ -499,7 +614,6 @@ class MavenConfig:
         
         # Add version-specific dependencies
         if junit_version == '5':
-            logger.debug("Adding JUnit 5 specific dependencies")
             test_deps.append({
                 'groupId': 'org.mockito',
                 'artifactId': 'mockito-junit-jupiter',
@@ -507,7 +621,6 @@ class MavenConfig:
                 'scope': 'test'
             })
         elif junit_version == '4':
-            logger.debug("Adding JUnit 4 specific dependencies")
             test_deps.extend([
                 {
                     'groupId': 'org.powermock',
@@ -547,6 +660,9 @@ class MavenConfig:
             
         # Add test dependencies (Mockito, AssertJ, PowerMock)
         self.add_test_dependencies()
+        
+        # Configure sortpom plugin to be skippable
+        self.configure_sortpom_plugin()
             
         # Add JaCoCo plugin if missing
         if not self.has_jacoco_plugin():
@@ -858,7 +974,6 @@ class MavenConfig:
         """
         self._load_pom()
         if self._root is None:
-            logger.debug("_detect_jacoco_pattern: POM file not loaded")
             return 'none'
             
         # Read the POM file as text for fuzzy searching
@@ -879,10 +994,7 @@ class MavenConfig:
         
         has_jacoco = any(pattern in pom_content for pattern in jacoco_patterns)
         if not has_jacoco:
-            logger.debug("_detect_jacoco_pattern: No JaCoCo plugin found")
             return 'none'
-        
-        logger.debug("_detect_jacoco_pattern: Found JaCoCo plugin")
         
         # Check for propertyName configuration using fuzzy search
         property_name_patterns = [
@@ -895,10 +1007,8 @@ class MavenConfig:
         
         has_property_name = any(pattern in pom_content for pattern in property_name_patterns)
         if has_property_name:
-            logger.debug("_detect_jacoco_pattern: Found propertyName=jacocoArgLine -> returning 'custom'")
             return 'custom'
         else:
-            logger.debug("_detect_jacoco_pattern: No propertyName found -> returning 'default'")
             return 'default'
 
     def _detect_surefire_pattern(self) -> str:
@@ -910,7 +1020,6 @@ class MavenConfig:
         """
         self._load_pom()
         if self._root is None:
-            logger.debug("_detect_surefire_pattern: POM file not loaded")
             return 'none'
             
         # Read the POM file as text for fuzzy searching
@@ -931,10 +1040,7 @@ class MavenConfig:
         
         has_surefire = any(pattern in pom_content for pattern in surefire_patterns)
         if not has_surefire:
-            logger.debug("_detect_surefire_pattern: No Surefire plugin found")
             return 'none'
-        
-        logger.debug("_detect_surefire_pattern: Found Surefire plugin")
         
         # Look for argLine configuration using fuzzy search
         # First, find the argLine section
@@ -947,20 +1053,14 @@ class MavenConfig:
         
         has_argline = any(pattern in pom_content for pattern in argline_patterns)
         if not has_argline:
-            logger.debug("_detect_surefire_pattern: No argLine found")
             return 'none'
-        
-        logger.debug("_detect_surefire_pattern: Found argLine configuration")
         
         # Check for specific patterns in the argLine content
         if '${jacocoArgLine}' in pom_content:
-            logger.debug("_detect_surefire_pattern: Found ${jacocoArgLine} -> returning 'jacocoargline'")
             return 'jacocoargline'
         elif '@{argLine}' in pom_content or '${argLine}' in pom_content:
-            logger.debug("_detect_surefire_pattern: Found @{argLine} or ${argLine} -> returning 'argline'")
             return 'argline'
         else:
-            logger.debug("_detect_surefire_pattern: argLine doesn't match expected patterns -> returning 'none'")
             return 'none'
 
     def has_working_jacoco_surefire_integration(self) -> bool:
@@ -968,27 +1068,20 @@ class MavenConfig:
         Check if the project already has a working JaCoCo + Surefire integration.
         Returns True if no modifications are needed.
         """
-        logger.debug("has_working_jacoco_surefire_integration: Starting detection...")
         jacoco_pattern = self._detect_jacoco_pattern()
         surefire_pattern = self._detect_surefire_pattern()
         
-        logger.debug(f"has_working_jacoco_surefire_integration: JaCoCo pattern = {jacoco_pattern}, Surefire pattern = {surefire_pattern}")
-        
         # Pattern 1: JaCoCo without propertyName + Surefire with @{argLine}
         if jacoco_pattern == 'default' and surefire_pattern == 'argline':
-            logger.debug("has_working_jacoco_surefire_integration: Detected working pattern: JaCoCo (default) + Surefire (@{argLine})")
             return True
             
         # Pattern 2: JaCoCo with propertyName="jacocoArgLine" + Surefire with ${jacocoArgLine}
         if jacoco_pattern == 'custom' and surefire_pattern == 'jacocoargline':
-            logger.debug("has_working_jacoco_surefire_integration: Detected working pattern: JaCoCo (custom) + Surefire (${jacocoArgLine})")
             return True
             
         # Pattern 3: JaCoCo (default) + Surefire (no argLine) → This is also working!
         if jacoco_pattern == 'default' and surefire_pattern == 'none':
-            logger.debug("has_working_jacoco_surefire_integration: Detected working pattern: JaCoCo (default) + Surefire (no argLine)")
             return True
             
         # No working integration detected
-        logger.debug(f"has_working_jacoco_surefire_integration: No working integration detected: JaCoCo={jacoco_pattern}, Surefire={surefire_pattern}")
         return False 

@@ -246,10 +246,10 @@ def run_final_test_suite_on_fix_commit(
                     # Use a simple approach: run the full Maven lifecycle
                     cmd = ["mvn", "clean", "test", 
                            f"-Dtest={class_name}", 
-                           "-Dspotless.check.skip=true", "-Dcheckstyle.skip=true", "-Dpmd.skip=true", "-Dfindbugs.skip=true", "-Dspring-javaformat.skip=true"]
+                           "-Dspotless.check.skip=true", "-Dcheckstyle.skip=true", "-Dpmd.skip=true", "-Dfindbugs.skip=true", "-Dspring-javaformat.skip=true", "-Dsortpom.skip=true", "-Denforcer.skip=true"]
                 else:
                     cmd = ["mvn", "clean", "test", 
-                           "-Dspotless.check.skip=true", "-Dcheckstyle.skip=true", "-Dpmd.skip=true", "-Dfindbugs.skip=true", "-Dspring-javaformat.skip=true"]
+                           "-Dspotless.check.skip=true", "-Dcheckstyle.skip=true", "-Dpmd.skip=true", "-Dfindbugs.skip=true", "-Dspring-javaformat.skip=true", "-Dsortpom.skip=true", "-Denforcer.skip=true"]
             else:
                 # Project doesn't use Surefire, use vanilla approach
                 print("Project doesn't use Surefire plugin, using vanilla approach")
@@ -259,10 +259,10 @@ def run_final_test_suite_on_fix_commit(
                     class_name = class_name  # Already extracted
                     cmd = ["mvn", "clean", "test", 
                            f"-Dtest={class_name}", 
-                           "-Dspotless.check.skip=true", "-Dcheckstyle.skip=true", "-Dpmd.skip=true", "-Dfindbugs.skip=true", "-Dspring-javaformat.skip=true"]
+                           "-Dspotless.check.skip=true", "-Dcheckstyle.skip=true", "-Dpmd.skip=true", "-Dfindbugs.skip=true", "-Dspring-javaformat.skip=true", "-Dsortpom.skip=true", "-Denforcer.skip=true"]
                 else:
                     cmd = ["mvn", "clean", "test", 
-                           "-Dspotless.check.skip=true", "-Dcheckstyle.skip=true", "-Dpmd.skip=true", "-Dfindbugs.skip=true", "-Dspring-javaformat.skip=true"]
+                           "-Dspotless.check.skip=true", "-Dcheckstyle.skip=true", "-Dpmd.skip=true", "-Dfindbugs.skip=true", "-Dspring-javaformat.skip=true", "-Dsortpom.skip=true", "-Denforcer.skip=true"]
             
         else:
             raise ValueError(f"Unsupported build system: {build_system}")
@@ -444,10 +444,10 @@ def run_final_test_suite_on_fix_commit_enhanced(
                     # Use a simple approach: run the full Maven lifecycle
                     cmd = ["mvn", "clean", "test", 
                            f"-Dtest={class_name}", 
-                           "-Dspotless.check.skip=true", "-Dcheckstyle.skip=true", "-Dpmd.skip=true", "-Dfindbugs.skip=true", "-Dspring-javaformat.skip=true"]
+                           "-Dspotless.check.skip=true", "-Dcheckstyle.skip=true", "-Dpmd.skip=true", "-Dfindbugs.skip=true", "-Dspring-javaformat.skip=true", "-Dsortpom.skip=true", "-Denforcer.skip=true"]
                 else:
                     cmd = ["mvn", "clean", "test", 
-                           "-Dspotless.check.skip=true", "-Dcheckstyle.skip=true", "-Dpmd.skip=true", "-Dfindbugs.skip=true", "-Dspring-javaformat.skip=true"]
+                           "-Dspotless.check.skip=true", "-Dcheckstyle.skip=true", "-Dpmd.skip=true", "-Dfindbugs.skip=true", "-Dspring-javaformat.skip=true", "-Dsortpom.skip=true", "-Denforcer.skip=true"]
             else:
                 # Project doesn't use Surefire, use vanilla approach
                 print("Project doesn't use Surefire plugin, using vanilla approach")
@@ -457,10 +457,10 @@ def run_final_test_suite_on_fix_commit_enhanced(
                     class_name = class_name  # Already extracted
                     cmd = ["mvn", "clean", "test", 
                            f"-Dtest={class_name}", 
-                           "-Dspotless.check.skip=true", "-Dcheckstyle.skip=true", "-Dpmd.skip=true", "-Dfindbugs.skip=true", "-Dspring-javaformat.skip=true"]
+                           "-Dspotless.check.skip=true", "-Dcheckstyle.skip=true", "-Dpmd.skip=true", "-Dfindbugs.skip=true", "-Dspring-javaformat.skip=true", "-Dsortpom.skip=true", "-Denforcer.skip=true"]
                 else:
                     cmd = ["mvn", "clean", "test", 
-                           "-Dspotless.check.skip=true", "-Dcheckstyle.skip=true", "-Dpmd.skip=true", "-Dfindbugs.skip=true", "-Dspring-javaformat.skip=true"]
+                           "-Dspotless.check.skip=true", "-Dcheckstyle.skip=true", "-Dpmd.skip=true", "-Dfindbugs.skip=true", "-Dspring-javaformat.skip=true", "-Dsortpom.skip=true", "-Denforcer.skip=true"]
             
         else:
             raise ValueError(f"Unsupported build system: {build_system}")

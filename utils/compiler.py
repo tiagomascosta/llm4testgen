@@ -158,7 +158,9 @@ def compile_and_capture_output(test_file: Path, repo_path: Path, java_home: str 
             "-Dcheckstyle.skip=true",
             "-Dspotless.check.skip=true",
             "-Dpmd.skip=true",
-            "-Dfindbugs.skip=true"
+            "-Dfindbugs.skip=true",
+            "-Dsortpom.skip=true",
+            "-Denforcer.skip=true"
         ]
         
         # Add Spring Java Format skip flag if the plugin is present

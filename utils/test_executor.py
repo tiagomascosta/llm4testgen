@@ -98,7 +98,7 @@ def run_individual_test(
         elif build_system == "maven":
             # Extract class name from fully qualified name for Maven
             class_name = test_class.split('.')[-1]
-            cmd = ["mvn", "test", f"-Dtest={class_name}", "-e", "-Dspotless.check.skip=true", "-Dcheckstyle.skip=true", "-Dpmd.skip=true", "-Dfindbugs.skip=true", "-Dspring-javaformat.skip=true"]
+            cmd = ["mvn", "test", f"-Dtest={class_name}", "-e", "-Dspotless.check.skip=true", "-Dcheckstyle.skip=true", "-Dpmd.skip=true", "-Dfindbugs.skip=true", "-Dspring-javaformat.skip=true", "-Dsortpom.skip=true", "-Denforcer.skip=true"]
         else:
             raise ValueError(f"Unsupported build system: {build_system}")
         
@@ -299,7 +299,7 @@ def run_test_class(
                             cmd = ["gradle", "test", f"--tests={test_class}", "--stacktrace"]
                             
                     elif build_system == "maven":
-                        cmd = ["mvn", "test", f"-Dtest={class_name}", "-e", "-Dspotless.check.skip=true", "-Dcheckstyle.skip=true", "-Dpmd.skip=true", "-Dfindbugs.skip=true", "-Dspring-javaformat.skip=true"]
+                        cmd = ["mvn", "test", f"-Dtest={class_name}", "-e", "-Dspotless.check.skip=true", "-Dcheckstyle.skip=true", "-Dpmd.skip=true", "-Dfindbugs.skip=true", "-Dspring-javaformat.skip=true", "-Dsortpom.skip=true", "-Denforcer.skip=true"]
                     else:
                         raise ValueError(f"Unsupported build system: {build_system}")
                     
@@ -605,7 +605,7 @@ def run_test_class(
             else:
                 clean_cmd = ["gradle", "clean", "testClasses"]
         elif build_system == "maven":
-            clean_cmd = ["mvn", "clean", "test-compile", "-Dspotless.check.skip=true", "-Dcheckstyle.skip=true", "-Dpmd.skip=true", "-Dfindbugs.skip=true", "-Dspring-javaformat.skip=true"]
+            clean_cmd = ["mvn", "clean", "test-compile", "-Dspotless.check.skip=true", "-Dcheckstyle.skip=true", "-Dpmd.skip=true", "-Dfindbugs.skip=true", "-Dspring-javaformat.skip=true", "-Dsortpom.skip=true", "-Denforcer.skip=true"]
         else:
             raise ValueError(f"Unsupported build system: {build_system}")
         
@@ -634,7 +634,7 @@ def run_test_class(
                 cmd = ["gradle", "test", f"--tests={test_class}"]
                 
         elif build_system == "maven":
-            cmd = ["mvn", "test", f"-Dtest={class_name}", "-Dspotless.check.skip=true", "-Dcheckstyle.skip=true", "-Dpmd.skip=true", "-Dfindbugs.skip=true", "-Dspring-javaformat.skip=true"]
+            cmd = ["mvn", "test", f"-Dtest={class_name}", "-Dspotless.check.skip=true", "-Dcheckstyle.skip=true", "-Dpmd.skip=true", "-Dfindbugs.skip=true", "-Dspring-javaformat.skip=true", "-Dsortpom.skip=true", "-Denforcer.skip=true"]
         else:
             raise ValueError(f"Unsupported build system: {build_system}")
         
@@ -1046,7 +1046,7 @@ def run_all_tests(
                 cmd = ["gradle", "test"]
                 
         elif build_system == "maven":
-            cmd = ["mvn", "test", "-Dspotless.check.skip=true", "-Dcheckstyle.skip=true", "-Dpmd.skip=true", "-Dfindbugs.skip=true", "-Dspring-javaformat.skip=true"]
+            cmd = ["mvn", "test", "-Dspotless.check.skip=true", "-Dcheckstyle.skip=true", "-Dpmd.skip=true", "-Dfindbugs.skip=true", "-Dspring-javaformat.skip=true", "-Dsortpom.skip=true", "-Denforcer.skip=true"]
         else:
             raise ValueError(f"Unsupported build system: {build_system}")
         
