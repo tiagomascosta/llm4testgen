@@ -26,7 +26,8 @@ def build_test_case_prompt(
     repo_root: str = None,
     imports: Dict[str, str] = None,
     src_package: str = None,
-    class_name: str = None
+    class_name: str = None,
+    used_method_names: List[str] = None
 ) -> Tuple[str, str]:
     """
     Build the prompt for generating a test case.
@@ -161,6 +162,19 @@ def build_test_case_prompt(
     if last_brace_pos != -1:
         scaffold_edited = scaffold_edited[:last_brace_pos] + '    // INSERT TEST METHOD HERE\n' + scaffold_edited[last_brace_pos:]
 
+    # Build method names section if provided
+    method_names_section = ""
+    if used_method_names:
+        method_names_section = f"""
+        
+5. Already Used Method Names:
+
+The following test method names have already been used in this test suite. Do NOT use any of these names for your new test method:
+
+{', '.join(used_method_names)}
+
+"""
+
     system_message = "You are a unit testing specialist."
 
     prompt = f"""=== CONTEXT ===
@@ -180,7 +194,7 @@ def build_test_case_prompt(
 {example_note}
 4. Unit Test Scenario (the scenario for which you will generate a test method):
 
-{scenario.title}: {scenario.description}
+{scenario.title}: {scenario.description}{method_names_section}
 
 === INSTRUCTIONS ===
 
@@ -191,8 +205,8 @@ def build_test_case_prompt(
 3. The test method must be:
    - "public void" with a descriptive name.
    - Annotated with "@Test".
-   - Its name must be unique: do not reuse any existing method names in the test file scaffold.
-     - Inspect the scaffold section to avoid naming collisions.
+   - Its name must be unique:
+     - Check the "Already Used Method Names" section above and avoid using any of those names.
      - Derive a meaningful name that reflects the scenario title and description.
 
 4. **Structured‐Output Requirement**:

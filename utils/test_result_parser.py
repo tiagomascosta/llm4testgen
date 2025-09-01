@@ -193,6 +193,24 @@ def extract_test_method_names(test_content: str) -> List[str]:
     
     return unique_method_names
 
+def extract_test_method_names_from_list(test_methods: List[str]) -> List[str]:
+    """
+    Extract method names from a list of individual test method strings.
+    Uses the same regex pattern used throughout the codebase for consistency.
+    
+    Args:
+        test_methods: List of individual test method strings
+        
+    Returns:
+        List of unique test method names
+    """
+    method_names = []
+    for test_method in test_methods:
+        method_name_match = re.search(r'public\s+void\s+(\w+)\s*\(', test_method)
+        if method_name_match:
+            method_names.append(method_name_match.group(1))
+    return list(set(method_names))  # Remove duplicates
+
 def get_fully_qualified_test_name(package: str, class_name: str, method_name: str) -> str:
     """
     Get the fully qualified test name for execution.

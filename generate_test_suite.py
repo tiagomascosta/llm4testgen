@@ -787,7 +787,6 @@ def main():
         final_tests = []  # Collect successful test methods
         recent_successful_tests = []  # Track recent successes for compile-fix examples
         compile_results = []  # Track compilation results for each scenario
-        dynamic_scaffold = method_info['test_scaffold']  # Start with original scaffold
         
         # Process each scenario
         for idx, scenario in enumerate(clustered_scenarios.scenarios, 1):
@@ -795,7 +794,10 @@ def main():
             print(f"   Theme: {scenario.title}")
             print(f"   Description: {scenario.description}")
             
-            # Update scaffold with recent successful examples (max 5)
+            # Build scaffold fresh for each scenario (start with original scaffold)
+            dynamic_scaffold = method_info['test_scaffold']
+            
+            # Update scaffold with recent successful examples (controlled by CLI argument)
             if recent_successful_tests and args.max_scaffold_examples > 0:
                 examples_block = "\n// === EXAMPLE TEST METHODS ===\n"
                 for idx_example, method_body in enumerate(recent_successful_tests[-args.max_scaffold_examples:], start=1):
@@ -813,6 +815,10 @@ def main():
                         dynamic_scaffold[last_brace_index:]
                     )
             
+            # Extract method names for uniqueness
+            from utils.test_result_parser import extract_test_method_names_from_list
+            used_method_names = extract_test_method_names_from_list(recent_successful_tests)
+            
             # Build test case prompt with updated scaffold
             system_message, test_case_prompt = build_test_case_prompt(
                 mut_sig=method_info['method_signature'],
@@ -828,8 +834,20 @@ def main():
                 repo_root=str(repo_path),
                 imports=load_source(str(class_file))['imports'],
                 src_package=method_info['package'],
-                class_name=method_info['class_name']
+                class_name=method_info['class_name'],
+                used_method_names=used_method_names
             )
+            
+            # TEMPORARY: Print the test case generation prompt for visualization
+            print("\n" + "="*80)
+            print("🔍 TEST CASE GENERATION PROMPT (TEMPORARY DEBUG)")
+            print("="*80)
+            print(f"System Message: {system_message}")
+            print("\n" + "-"*80)
+            print("User Prompt:")
+            print("-"*80)
+            print(test_case_prompt)
+            print("="*80 + "\n")
             
             # Send prompt to LLM and get response
             test_method = llm_client.call_structured(

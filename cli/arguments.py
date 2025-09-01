@@ -135,7 +135,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         '--max-scaffold-examples',
         type=int,
-        default=100,
+        default=3,
         help='Maximum number of examples to include in test generation scaffold'
     )
     
@@ -149,7 +149,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         '--max-runtime-fix-examples',
         type=int,
-        default=5,
+        default=3,
         help='Maximum number of examples to include in runtime-fix prompts'
     )
     
