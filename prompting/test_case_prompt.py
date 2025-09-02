@@ -56,17 +56,9 @@ def build_test_case_prompt(
     schema = TestMethodOnly.model_json_schema()
     pretty_schema = json.dumps(schema, indent=2)
 
-    # Build examples block if provided
-    examples_block = ""
-    if example_tests:
-        examples_block = "\n// === EXAMPLE TEST METHODS ===\n"
-        for idx, method_body in enumerate(example_tests[-5:], start=1):
-            examples_block += f"// Example {idx}:\n{method_body}\n\n"
-    
+    # Check if the scaffold contains example test methods
     example_note = ""
-    if examples_block:
-        # Indent each line of examples_block by 4 spaces
-        indented_examples = "\n".join("    " + line for line in examples_block.splitlines())
+    if "// === EXAMPLE TEST METHODS ===" in scaffold:
         example_note = "\nNote: The scaffold above already has some fully‐compilable example test methods (marked with '// Example N') that exercise other scenarios.\n"
 
     # Build dependencies section
@@ -165,13 +157,15 @@ def build_test_case_prompt(
     # Build method names section if provided
     method_names_section = ""
     if used_method_names:
+        # Format each method name on a separate line with bullet points
+        formatted_names = "\n".join([f"- {name}" for name in used_method_names])
         method_names_section = f"""
         
 5. Already Used Method Names:
 
 The following test method names have already been used in this test suite. Do NOT use any of these names for your new test method:
 
-{', '.join(used_method_names)}
+{formatted_names}
 
 """
 

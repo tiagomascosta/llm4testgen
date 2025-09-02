@@ -786,6 +786,7 @@ def main():
         # Initialize tracking variables
         final_tests = []  # Collect successful test methods
         recent_successful_tests = []  # Track recent successes for compile-fix examples
+        all_generated_test_names = []  # Track ALL test names for uniqueness
         compile_results = []  # Track compilation results for each scenario
         
         # Process each scenario
@@ -811,13 +812,17 @@ def main():
                         dynamic_scaffold[:last_brace_index] +
                         "\n" +
                         indented_examples + "\n" +
-                        "    // INSERT TEST METHOD HERE\n" +
                         dynamic_scaffold[last_brace_index:]
                     )
             
-            # Extract method names for uniqueness
+            # Extract method names for uniqueness (use ALL generated names, not just recent ones)
             from utils.test_result_parser import extract_test_method_names_from_list
             used_method_names = extract_test_method_names_from_list(recent_successful_tests)
+            
+            # Also include names from tests generated in previous scenarios
+            if all_generated_test_names:
+                used_method_names.extend(all_generated_test_names)
+                used_method_names = list(set(used_method_names))  # Remove duplicates
             
             # Build test case prompt with updated scaffold
             system_message, test_case_prompt = build_test_case_prompt(
@@ -837,17 +842,6 @@ def main():
                 class_name=method_info['class_name'],
                 used_method_names=used_method_names
             )
-            
-            # TEMPORARY: Print the test case generation prompt for visualization
-            print("\n" + "="*80)
-            print("🔍 TEST CASE GENERATION PROMPT (TEMPORARY DEBUG)")
-            print("="*80)
-            print(f"System Message: {system_message}")
-            print("\n" + "-"*80)
-            print("User Prompt:")
-            print("-"*80)
-            print(test_case_prompt)
-            print("="*80 + "\n")
             
             # Send prompt to LLM and get response
             test_method = llm_client.call_structured(
@@ -874,6 +868,12 @@ def main():
                 print_success("Test method compiled successfully on first attempt")
                 final_tests.append((scenario, test_method.testMethod))
                 recent_successful_tests.append(test_method.testMethod)
+                
+                # Extract and track the test method name for uniqueness
+                method_name_match = re.search(r'public\s+void\s+(\w+)\s*\(', test_method.testMethod)
+                if method_name_match:
+                    all_generated_test_names.append(method_name_match.group(1))
+                
                 compile_results.append((scenario.title, True, 1))  # (title, success, attempts)
                 
                 # Log successful compilation on first attempt
@@ -913,6 +913,12 @@ def main():
                 if fix_success:
                     final_tests.append((scenario, final_test_method))
                     recent_successful_tests.append(final_test_method)
+                    
+                    # Extract and track the test method name for uniqueness
+                    method_name_match = re.search(r'public\s+void\s+(\w+)\s*\(', final_test_method)
+                    if method_name_match:
+                        all_generated_test_names.append(method_name_match.group(1))
+                    
                     compile_results.append((scenario.title, True, attempts_made + 1))  # Add 1 for initial attempt
                     
                     # Log successful compilation after fix attempts
