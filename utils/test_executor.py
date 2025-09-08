@@ -56,6 +56,54 @@ def save_assertion_failure_file(
     except Exception as e:
         print(f"   ⚠️ Failed to save assertion failure file: {e}")
 
+def save_bug_revealing_runtime_error_file(
+    isolated_test_content: str,
+    method_name: str, 
+    class_name: str,
+    package: str,
+    output_dir: Path,
+    counter: int
+) -> None:
+    """
+    Save bug-revealing runtime error files to potential_bugs directory.
+    
+    Args:
+        isolated_test_content: The content of the isolated test file
+        method_name: Name of the test method that failed
+        class_name: Name of the test class
+        package: Package name
+        output_dir: Base output directory
+        counter: Sequential counter for unique filenames
+    """
+    try:
+        # Create potential_bugs directory
+        potential_bugs_dir = output_dir / "potential_bugs"
+        potential_bugs_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Create filename with sequential number: {method}_{class}_{number:02d}Test.java
+        filename = f"{method_name}_{class_name}_{counter:02d}Test.java"
+        file_path = potential_bugs_dir / filename
+        
+        # Create the new class name that matches the filename
+        new_class_name = f"{method_name}_{class_name}_{counter:02d}Test"
+        
+        # Update the class name inside the file content
+        updated_content = isolated_test_content.replace(
+            f"public class {class_name}Test",
+            f"public class {new_class_name}"
+        ).replace(
+            f"public class {class_name}",
+            f"public class {new_class_name}"
+        )
+        
+        # Save the file
+        file_path.write_text(updated_content, encoding='utf-8')
+        
+        print(f"   💾 Saved bug-revealing runtime error: {filename}")
+        
+    except Exception as e:
+        print(f"   ⚠️ Failed to save bug-revealing runtime error file: {e}")
+
 def remove_ansi_colors(text: str) -> str:
     """
     Remove ANSI color codes from text to facilitate regex matching.
@@ -365,9 +413,64 @@ def run_test_class(
                             else:
                                 print(f"   ℹ️ Test method already in examples list (skipping duplicate)")
                         
-                        # Runtime fix loop integration
-                        if failure_category == "runtime_error" and args and hasattr(args, 'max_runtime_fix_attempts') and args.max_runtime_fix_attempts > 0:
+                        # JCrasher Classification - Apply to both runtime errors AND assertion errors
+                        # This is because assertion errors in individual runs might actually be runtime errors
+                        if args and hasattr(args, 'max_runtime_fix_attempts') and args.max_runtime_fix_attempts > 0:
                             try:
+                                # JCrasher Classification - Classify both runtime and assertion errors
+                                jcrasher_classification = classify_runtime_exception_jcrasher(
+                                    runtime_error_output=test_output,
+                                    build_system=build_system,
+                                    mut_body=mut_body,
+                                    test_method_name=method_name
+                                )
+                                
+                                if jcrasher_classification == "bug_revealing":
+                                    # Update failure category to distinguish from regular runtime errors
+                                    individual_failures[method_name] = "bug_revealing_runtime_error"
+                                    
+                                    # Save bug-revealing runtime error file to potential_bugs directory (same as assertion errors)
+                                    if output_dir:
+                                        try:
+                                            # Create isolated test content for the failing test
+                                            isolated_test_content = create_isolated_test_with_scaffold(
+                                                test_content=test_method,
+                                                method_name=method_name,
+                                                class_name=class_name,
+                                                package=package,
+                                                scaffold=scaffold
+                                            )
+                                            
+                                            # Count bug-revealing runtime errors for unique filename
+                                            bug_revealing_runtime_error_count = sum(1 for failure_type in individual_failures.values() 
+                                                                                    if failure_type == "bug_revealing_runtime_error")
+                                            
+                                            save_bug_revealing_runtime_error_file(
+                                                isolated_test_content=isolated_test_content,
+                                                method_name=method_name,
+                                                class_name=class_name,
+                                                package=package,
+                                                output_dir=output_dir,
+                                                counter=bug_revealing_runtime_error_count
+                                            )
+                                        except Exception as e:
+                                            print(f"   ⚠️ Failed to save bug-revealing runtime error file: {e}")
+                                    
+                                    # Log bug-revealing runtime error to JSON
+                                    if json_logger:
+                                        json_logger.add_individual_test_runtime_fix_result(
+                                            test_name=method_name,
+                                            runtime_fix_attempted=False,  # Not attempted due to JCrasher
+                                            runtime_fix_successful=None,
+                                            attempts_made=0,
+                                            final_outcome="bug_revealing_runtime_error"
+                                        )
+                                    continue  # Skip runtime fix loop
+                                
+                                # Only proceed with runtime fix loop for actual runtime errors that are fixable
+                                if failure_category != "runtime_error":
+                                    continue
+                                
                                 # Import the runtime-fix loop
                                 from utils.runtime_fix_loop import runtime_fix_loop, clean_runtime_error_comment
                                 
@@ -1358,6 +1461,210 @@ def categorize_test_failure(test_output: str, build_system: str) -> str:
     # Default to assertion error if we can't determine
     return "assertion_error"
 
+def classify_runtime_exception_jcrasher(
+    runtime_error_output: str, 
+    build_system: str, 
+    mut_body: str = None,
+    test_method_name: str = None
+) -> str:
+    """
+    Classify runtime exceptions according to JCrasher framework.
+    
+    JCrasher Rule:
+    - Treat as "fixable" (test is faulty) if:
+      1. It's a checked exception, OR
+      2. It's an unchecked IllegalArgumentException, IllegalStateException, or NullPointerException
+         thrown by the method under test (top frame) or by a non-public callee
+    - Otherwise, treat as "bug_revealing" (test reveals a bug)
+    
+    Args:
+        runtime_error_output: The runtime error output from test execution
+        build_system: Build system type ("gradle" or "maven")
+        mut_body: The method under test body (for extracting method name)
+        test_method_name: Name of the test method (fallback if mut_body not available)
+        
+    Returns:
+        "fixable" - Test is faulty and should be fixed
+        "bug_revealing" - Test reveals a bug and should NOT be fixed
+    """
+    # Extract exception type from the output
+    exception_type = extract_exception_type_from_output(runtime_error_output, build_system)
+    if not exception_type:
+        return "fixable"
+    
+    # Check if it's a checked exception
+    if is_checked_exception(exception_type):
+        return "fixable"
+    
+    # Check if it's one of the specific unchecked exceptions we care about
+    if exception_type in ["IllegalArgumentException", "IllegalStateException", "NullPointerException"]:
+        # Check if it's thrown by the method under test
+        if is_thrown_by_method_under_test(runtime_error_output, mut_body, test_method_name, build_system):
+            return "fixable"
+        else:
+            return "bug_revealing"
+    elif exception_type == "AssertionError":
+        # AssertionError is always fixable (test logic is wrong, not a bug in the code)
+        return "fixable"
+    else:
+        return "bug_revealing"
+
+def extract_exception_type_from_output(runtime_error_output: str, build_system: str) -> str:
+    """
+    Extract the exception type from the runtime error output.
+    
+    Returns:
+        Exception type (e.g., "NullPointerException", "IllegalArgumentException") or None
+    """
+    lines = runtime_error_output.split('\n')
+    
+    if build_system == "maven":
+        # Maven format: Look for "Caused by: java.lang.ExceptionName" OR indented exception lines
+        for line in lines:
+            # First, try "Caused by:" format
+            if "Caused by:" in line:
+                # Extract exception name from "Caused by: java.lang.ExceptionName"
+                parts = line.split("Caused by:")
+                if len(parts) > 1:
+                    exception_part = parts[1].strip()
+                    # Extract just the exception name (last part before colon or space)
+                    if ':' in exception_part:
+                        exception_part = exception_part.split(':')[0]
+                    if '.' in exception_part:
+                        exception_name = exception_part.split('.')[-1]
+                        return exception_name
+                    else:
+                        return exception_part
+            
+            # Second, try indented exception lines (like in test output)
+            elif line.strip().startswith('java.lang.') or line.strip().startswith('java.util.') or line.strip().startswith('org.'):
+                # Extract exception name from "java.lang.ExceptionName" or "java.lang.ExceptionName: message"
+                exception_part = line.strip()
+                # Handle colons in exception names (e.g., "IllegalArgumentException: message")
+                if ':' in exception_part:
+                    exception_part = exception_part.split(':')[0]
+                # Extract just the exception name (last part after dots)
+                if '.' in exception_part:
+                    exception_name = exception_part.split('.')[-1]
+                    return exception_name
+                else:
+                    return exception_part
+    
+    elif build_system == "gradle":
+        # Gradle format: Look for indented exception lines
+        for line in lines:
+            # Look for lines that start with java.lang. or java.util. (actual exceptions)
+            # and are indented (indicating they're part of the stack trace)
+            if (line.strip().startswith('java.lang.') or line.strip().startswith('java.util.') or 
+                line.strip().startswith('org.') and 'Exception' in line or 'Error' in line):
+                # Extract exception name from "java.lang.ExceptionName at File.java:line"
+                parts = line.strip().split()
+                if len(parts) > 0:
+                    exception_full = parts[0]
+                    # Handle colons in exception names (e.g., "IllegalArgumentException:")
+                    if ':' in exception_full:
+                        exception_full = exception_full.split(':')[0]
+                    # Extract just the exception name (last part after dots)
+                    if '.' in exception_full:
+                        exception_name = exception_full.split('.')[-1]
+                        return exception_name
+                    else:
+                        return exception_full
+    
+    # Fallback: look for common exception patterns
+    output_lower = runtime_error_output.lower()
+    exception_mapping = {
+        "nullpointerexception": "NullPointerException",
+        "illegalargumentexception": "IllegalArgumentException", 
+        "illegalstateexception": "IllegalStateException",
+        "runtimeexception": "RuntimeException",
+        "parseexception": "ParseException",
+        "ioexception": "IOException",
+        "sqlexception": "SQLException",
+        "classnotfoundexception": "ClassNotFoundException"
+    }
+    
+    for exc_lower, exc_proper in exception_mapping.items():
+        if exc_lower in output_lower:
+            return exc_proper
+    
+    return None
+
+def is_checked_exception(exception_type: str) -> bool:
+    """
+    Check if the exception type is a checked exception.
+    
+    Args:
+        exception_type: The exception type (e.g., "IOException", "NullPointerException")
+        
+    Returns:
+        True if it's a checked exception, False otherwise
+    """
+    checked_exceptions = {
+        "IOException", "SQLException", "ParseException", "ClassNotFoundException",
+        "NoSuchMethodException", "InstantiationException", "IllegalAccessException",
+        "InvocationTargetException", "InterruptedException", "CloneNotSupportedException"
+    }
+    
+    return exception_type in checked_exceptions
+
+def is_thrown_by_method_under_test(
+    runtime_error_output: str, 
+    mut_body: str, 
+    test_method_name: str, 
+    build_system: str
+) -> bool:
+    """
+    Check if the exception is thrown by the method under test (top frame).
+    
+    Args:
+        runtime_error_output: The runtime error output
+        mut_body: The method under test body
+        test_method_name: Name of the test method
+        build_system: Build system type
+        
+    Returns:
+        True if exception is thrown by method under test, False otherwise
+    """
+    # Extract method name from mut_body if available
+    method_under_test_name = None
+    if mut_body:
+        # Look for method signature in mut_body
+        import re
+        method_match = re.search(r'(?:public|private|protected)?\s*(?:static)?\s*\w+\s+(\w+)\s*\(', mut_body)
+        if method_match:
+            method_under_test_name = method_match.group(1)
+    
+    if not method_under_test_name:
+        return True  # Default to fixable if we can't determine
+    
+    # Parse stack trace to find the top frame
+    lines = runtime_error_output.split('\n')
+    
+    if build_system == "maven":
+        # Maven format: Look for "at ClassName.methodName(FileName.java:line)"
+        for line in lines:
+            if "at " in line and ".java:" in line:
+                # Extract method name from stack trace
+                # Pattern: "at com.example.ClassName.methodName(FileName.java:line)"
+                method_match = re.search(r'at\s+[\w.]+\.(\w+)\s*\([^)]+\.java:\d+\)', line)
+                if method_match:
+                    stack_method_name = method_match.group(1)
+                    return stack_method_name == method_under_test_name
+    
+    elif build_system == "gradle":
+        # Gradle format: Look for "at FileName.java:line" and check context
+        for i, line in enumerate(lines):
+            if ".java:" in line and "at " in line:
+                # Check if this line contains the method under test
+                if method_under_test_name in line:
+                    return True
+                # Also check the previous line for method context
+                if i > 0 and method_under_test_name in lines[i-1]:
+                    return True
+    
+    return False
+
 def create_detailed_summary(failure_details: Dict[str, str], test_methods: List[str], summary_type: str, json_logger=None) -> str:
     """
     Create a detailed summary of test execution results.
@@ -1380,6 +1687,7 @@ def create_detailed_summary(failure_details: Dict[str, str], test_methods: List[
     failure_counts = {
         "assertion_error": 0,
         "runtime_error": 0,
+        "bug_revealing_runtime_error": 0,  # NEW: JCrasher classification
         "timeout": 0
     }
     
@@ -1388,6 +1696,14 @@ def create_detailed_summary(failure_details: Dict[str, str], test_methods: List[
         if failure_type is not None:  # If test failed (has a failure type)
             if failure_type in failure_counts:
                 failure_counts[failure_type] += 1
+    
+    # Calculate fixable runtime errors (runtime_errors - bug_revealing_runtime_errors)
+    fixable_runtime_errors = failure_counts["runtime_error"] - failure_counts["bug_revealing_runtime_error"]
+    
+    # Only show JCrasher summary for individual runs (not group runs)
+    if summary_type == "Individual":
+        print(f"   📊 JCrasher Summary: {failure_counts['runtime_error']} total runtime errors")
+        print(f"   📊 JCrasher Summary: {failure_counts['bug_revealing_runtime_error']} bug-revealing, {fixable_runtime_errors} fixable")
     
     # Log to JSON if logger is provided
     if json_logger:
@@ -1401,6 +1717,8 @@ def create_detailed_summary(failure_details: Dict[str, str], test_methods: List[
                     failures_dict[method] = "Assertion Error"
                 elif failure_type == "runtime_error":
                     failures_dict[method] = "Runtime Error"
+                elif failure_type == "bug_revealing_runtime_error":
+                    failures_dict[method] = "Bug-Revealing Runtime Error"  # NEW: JCrasher
                 elif failure_type == "timeout":
                     failures_dict[method] = "Timeout"
         
@@ -1411,7 +1729,9 @@ def create_detailed_summary(failure_details: Dict[str, str], test_methods: List[
                 assertion_errors=failure_counts["assertion_error"],
                 runtime_errors=failure_counts["runtime_error"],
                 timeout_errors=failure_counts["timeout"],
-                failures=failures_dict
+                failures=failures_dict,
+                bug_revealing_runtime_errors=failure_counts["bug_revealing_runtime_error"],
+                fixable_runtime_errors=fixable_runtime_errors
             )
         elif summary_type == "Group":
             json_logger.update_test_execution_group(
@@ -1420,7 +1740,9 @@ def create_detailed_summary(failure_details: Dict[str, str], test_methods: List[
                 assertion_errors=failure_counts["assertion_error"],
                 runtime_errors=failure_counts["runtime_error"],
                 timeout_errors=failure_counts["timeout"],
-                failures=failures_dict
+                failures=failures_dict,
+                bug_revealing_runtime_errors=failure_counts["bug_revealing_runtime_error"],
+                fixable_runtime_errors=fixable_runtime_errors
             )
     
     # Build summary
@@ -1528,6 +1850,7 @@ def count_error_types(failure_details: Dict[str, str], test_methods: List[str]) 
     error_counts = {
         "assertion_error": 0,
         "runtime_error": 0,
+        "bug_revealing_runtime_error": 0,  # NEW: JCrasher classification
         "timeout": 0
     }
     

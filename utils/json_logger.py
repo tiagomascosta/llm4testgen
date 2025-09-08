@@ -66,6 +66,8 @@ class TestGenerationLogger:
                     "passed": None,
                     "assertion_errors": None,
                     "runtime_errors": None,
+                    "bug_revealing_runtime_errors": None,  # NEW: JCrasher classification
+                    "fixable_runtime_errors": None,  # NEW: JCrasher classification
                     "timeout_errors": None,
                     "failures": {},
                     "tests": {}
@@ -75,6 +77,8 @@ class TestGenerationLogger:
                     "passed": None,
                     "assertion_errors": None,
                     "runtime_errors": None,
+                    "bug_revealing_runtime_errors": None,  # NEW: JCrasher classification
+                    "fixable_runtime_errors": None,  # NEW: JCrasher classification
                     "timeout_errors": None,
                     "failures": {}
                 },
@@ -83,6 +87,8 @@ class TestGenerationLogger:
                     "passed": None,
                     "assertion_errors": None,
                     "runtime_errors": None,
+                    "bug_revealing_runtime_errors": None,  # NEW: JCrasher classification
+                    "fixable_runtime_errors": None,  # NEW: JCrasher classification
                     "timeout_errors": None,
                     "failures": {}
                 }
@@ -111,6 +117,7 @@ class TestGenerationLogger:
                 "error_types": {
                     "assertion_error": 0,
                     "runtime_error": 0,
+                    "bug_revealing_runtime_error": 0,  # NEW: JCrasher classification
                     "timeout": 0
                 }
             },
@@ -181,7 +188,8 @@ class TestGenerationLogger:
     
     def update_test_execution_individual(self, total_tests: int, passed: int, 
                                        assertion_errors: int, runtime_errors: int, 
-                                       timeout_errors: int = 0, failures: Dict[str, str] = None):
+                                       timeout_errors: int = 0, failures: Dict[str, str] = None,
+                                       bug_revealing_runtime_errors: int = 0, fixable_runtime_errors: int = 0):
         """Update individual test execution results."""
         # Preserve the tests section if it exists
         existing_tests = self.data["test_execution"]["individual"].get("tests", {})
@@ -191,6 +199,8 @@ class TestGenerationLogger:
             "passed": passed,
             "assertion_errors": assertion_errors,
             "runtime_errors": runtime_errors,
+            "bug_revealing_runtime_errors": bug_revealing_runtime_errors,  # NEW: JCrasher
+            "fixable_runtime_errors": fixable_runtime_errors,  # NEW: JCrasher
             "timeout_errors": timeout_errors,
             "failures": failures or {},
             "tests": existing_tests  # Preserve the tests section
@@ -220,26 +230,32 @@ class TestGenerationLogger:
     
     def update_test_execution_group(self, total_tests: int, passed: int, 
                                   assertion_errors: int, runtime_errors: int, 
-                                  timeout_errors: int = 0, failures: Dict[str, str] = None):
+                                  timeout_errors: int = 0, failures: Dict[str, str] = None,
+                                  bug_revealing_runtime_errors: int = 0, fixable_runtime_errors: int = 0):
         """Update group test execution results."""
         self.data["test_execution"]["group"] = {
             "total_tests": total_tests,
             "passed": passed,
             "assertion_errors": assertion_errors,
             "runtime_errors": runtime_errors,
+            "bug_revealing_runtime_errors": bug_revealing_runtime_errors,  # NEW: JCrasher
+            "fixable_runtime_errors": fixable_runtime_errors,  # NEW: JCrasher
             "timeout_errors": timeout_errors,
             "failures": failures or {}
         }
     
     def update_test_execution_summary(self, total_tests: int, passed: int, 
                                     assertion_errors: int, runtime_errors: int, 
-                                    timeout_errors: int = 0, failures: Dict[str, str] = None):
+                                    timeout_errors: int = 0, failures: Dict[str, str] = None,
+                                    bug_revealing_runtime_errors: int = 0, fixable_runtime_errors: int = 0):
         """Update general test execution summary."""
         self.data["test_execution"]["summary"] = {
             "total_tests": total_tests,
             "passed": passed,
             "assertion_errors": assertion_errors,
             "runtime_errors": runtime_errors,
+            "bug_revealing_runtime_errors": bug_revealing_runtime_errors,  # NEW: JCrasher
+            "fixable_runtime_errors": fixable_runtime_errors,  # NEW: JCrasher
             "timeout_errors": timeout_errors,
             "failures": failures or {}
         }
@@ -270,6 +286,7 @@ class TestGenerationLogger:
         error_types = {
             "assertion_error": 0,
             "runtime_error": 0,
+            "bug_revealing_runtime_error": 0,  # NEW: JCrasher classification
             "timeout": 0
         }
         
