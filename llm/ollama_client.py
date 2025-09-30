@@ -99,7 +99,6 @@ class OllamaClient:
         # Enable reasoning for reasoning models
         if is_reasoning:
             base_payload["think"] = True
-            logger.info(f"Using reasoning model {chosen_model} with think parameter enabled")
         
         # Add schema if provided
         payload = {**base_payload, "format": schema} if schema else base_payload

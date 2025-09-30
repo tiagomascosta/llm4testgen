@@ -413,11 +413,12 @@ def run_test_class(
                             else:
                                 print(f"   ℹ️ Test method already in examples list (skipping duplicate)")
                         
-                        # JCrasher Classification - Apply to both runtime errors AND assertion errors
-                        # This is because assertion errors in individual runs might actually be runtime errors
-                        if args and hasattr(args, 'max_runtime_fix_attempts') and args.max_runtime_fix_attempts > 0:
+                        # JCrasher Classification - Apply ONLY to runtime errors
+                        # Assertion errors should remain as assertion errors
+                        if (args and hasattr(args, 'max_runtime_fix_attempts') and args.max_runtime_fix_attempts > 0 
+                            and individual_failures.get(method_name) == "runtime_error"):
                             try:
-                                # JCrasher Classification - Classify both runtime and assertion errors
+                                # JCrasher Classification - Classify only runtime errors
                                 jcrasher_classification = classify_runtime_exception_jcrasher(
                                     runtime_error_output=test_output,
                                     build_system=build_system,
@@ -427,6 +428,7 @@ def run_test_class(
                                 
                                 if jcrasher_classification == "bug_revealing":
                                     # Update failure category to distinguish from regular runtime errors
+                                    # This replaces the original "runtime_error" classification
                                     individual_failures[method_name] = "bug_revealing_runtime_error"
                                     
                                     # Save bug-revealing runtime error file to potential_bugs directory (same as assertion errors)
@@ -1489,7 +1491,12 @@ def classify_runtime_exception_jcrasher(
     """
     # Extract exception type from the output
     exception_type = extract_exception_type_from_output(runtime_error_output, build_system)
+    
     if not exception_type:
+        return "fixable"
+    
+    # Check if it's a reflection/scaffolding failure first
+    if is_reflection_scaffolding_failure(runtime_error_output):
         return "fixable"
     
     # Check if it's a checked exception
@@ -1499,13 +1506,18 @@ def classify_runtime_exception_jcrasher(
     # Check if it's one of the specific unchecked exceptions we care about
     if exception_type in ["IllegalArgumentException", "IllegalStateException", "NullPointerException"]:
         # Check if it's thrown by the method under test
-        if is_thrown_by_method_under_test(runtime_error_output, mut_body, test_method_name, build_system):
+        thrown_by_mut = is_thrown_by_method_under_test(runtime_error_output, mut_body, test_method_name, build_system)
+        if thrown_by_mut:
             return "fixable"
         else:
             return "bug_revealing"
     elif exception_type == "AssertionError":
         # AssertionError is always fixable (test logic is wrong, not a bug in the code)
         return "fixable"
+    elif exception_type in ["ArrayIndexOutOfBoundsException", "NegativeArraySizeException", 
+                           "ArrayStoreException", "ClassCastException", "ArithmeticException"]:
+        # Group 1 unchecked exceptions - always bug-revealing (should have been prevented or caught)
+        return "bug_revealing"
     else:
         return "bug_revealing"
 
@@ -1555,8 +1567,14 @@ def extract_exception_type_from_output(runtime_error_output: str, build_system: 
         for line in lines:
             # Look for lines that start with java.lang. or java.util. (actual exceptions)
             # and are indented (indicating they're part of the stack trace)
-            if (line.strip().startswith('java.lang.') or line.strip().startswith('java.util.') or 
-                line.strip().startswith('org.') and 'Exception' in line or 'Error' in line):
+            if (
+                line.strip().startswith('java.lang.')
+                or line.strip().startswith('java.util.')
+                or (
+                    line.strip().startswith('org.')
+                    and ('Exception' in line or 'Error' in line)
+                )
+            ):
                 # Extract exception name from "java.lang.ExceptionName at File.java:line"
                 parts = line.strip().split()
                 if len(parts) > 0:
@@ -1573,6 +1591,14 @@ def extract_exception_type_from_output(runtime_error_output: str, build_system: 
     
     # Fallback: look for common exception patterns
     output_lower = runtime_error_output.lower()
+    
+    # Global regex fallback for JUnit 5/Gradle modernos
+    import re
+    m = re.search(r'(?:^|\s)([a-zA-Z0-9_.]+(?:Exception|Error))(?::|\s|$)', runtime_error_output)
+    if m:
+        name = m.group(1).split('.')[-1]
+        return name
+    
     exception_mapping = {
         "nullpointerexception": "NullPointerException",
         "illegalargumentexception": "IllegalArgumentException", 
@@ -1581,7 +1607,15 @@ def extract_exception_type_from_output(runtime_error_output: str, build_system: 
         "parseexception": "ParseException",
         "ioexception": "IOException",
         "sqlexception": "SQLException",
-        "classnotfoundexception": "ClassNotFoundException"
+        "classnotfoundexception": "ClassNotFoundException",
+        "nosuchfieldexception": "NoSuchFieldException",
+        "nosuchmethodexception": "NoSuchMethodException",
+        "illegalaccessexception": "IllegalAccessException",
+        "arrayindexoutofboundsexception": "ArrayIndexOutOfBoundsException",
+        "negativearraysizeexception": "NegativeArraySizeException",
+        "arraystoreexception": "ArrayStoreException",
+        "classcastexception": "ClassCastException",
+        "arithmeticexception": "ArithmeticException"
     }
     
     for exc_lower, exc_proper in exception_mapping.items():
@@ -1589,6 +1623,43 @@ def extract_exception_type_from_output(runtime_error_output: str, build_system: 
             return exc_proper
     
     return None
+
+def is_reflection_scaffolding_failure(runtime_error_output: str) -> bool:
+    """
+    Detect if this is a reflection/scaffolding failure (test issue, not SUT bug).
+    
+    This function identifies cases where the test scaffolding is trying to access
+    non-existent fields/methods via reflection, which should be classified as
+    "fixable" (test issue) rather than "bug_revealing" (SUT issue).
+    
+    Args:
+        runtime_error_output: The runtime error output from test execution
+        
+    Returns:
+        True if this appears to be a reflection/scaffolding failure
+    """
+    output_lower = runtime_error_output.lower()
+    
+    # Check for reflection-related stack frames
+    reflection_frames = [
+        "java.lang.reflect.",
+        "sun.reflect.",
+        "jdk.internal.reflect."
+    ]
+    
+    # Check for reflection-related exceptions
+    reflection_exceptions = [
+        "nosuchfieldexception",
+        "nosuchmethodexception", 
+        "illegalaccessexception",
+        "invocationtargetexception"
+    ]
+    
+    # Must have both reflection frames AND reflection exceptions
+    has_reflection_frame = any(frame in output_lower for frame in reflection_frames)
+    has_reflection_exception = any(exc in output_lower for exc in reflection_exceptions)
+    
+    return has_reflection_frame and has_reflection_exception
 
 def is_checked_exception(exception_type: str) -> bool:
     """
@@ -1602,8 +1673,9 @@ def is_checked_exception(exception_type: str) -> bool:
     """
     checked_exceptions = {
         "IOException", "SQLException", "ParseException", "ClassNotFoundException",
-        "NoSuchMethodException", "InstantiationException", "IllegalAccessException",
-        "InvocationTargetException", "InterruptedException", "CloneNotSupportedException"
+        "NoSuchMethodException", "NoSuchFieldException", "InstantiationException", 
+        "IllegalAccessException", "InvocationTargetException", "InterruptedException", 
+        "CloneNotSupportedException"
     }
     
     return exception_type in checked_exceptions
@@ -1631,12 +1703,13 @@ def is_thrown_by_method_under_test(
     if mut_body:
         # Look for method signature in mut_body
         import re
-        method_match = re.search(r'(?:public|private|protected)?\s*(?:static)?\s*\w+\s+(\w+)\s*\(', mut_body)
+        # Regex mais robusto para evitar apanhar tipos/constructores
+        method_match = re.search(r'(?:public|private|protected)?\s*(?:static)?\s*(?!class\s|interface\s|enum\s)\w+\s+(\w+)\s*\(', mut_body)
         if method_match:
             method_under_test_name = method_match.group(1)
     
     if not method_under_test_name:
-        return True  # Default to fixable if we can't determine
+        return False  # Default to bug_revealing (conservative)
     
     # Parse stack trace to find the top frame
     lines = runtime_error_output.split('\n')
@@ -1650,7 +1723,8 @@ def is_thrown_by_method_under_test(
                 method_match = re.search(r'at\s+[\w.]+\.(\w+)\s*\([^)]+\.java:\d+\)', line)
                 if method_match:
                     stack_method_name = method_match.group(1)
-                    return stack_method_name == method_under_test_name
+                    if stack_method_name == method_under_test_name:
+                        return True
     
     elif build_system == "gradle":
         # Gradle format: Look for "at FileName.java:line" and check context
@@ -1697,12 +1771,13 @@ def create_detailed_summary(failure_details: Dict[str, str], test_methods: List[
             if failure_type in failure_counts:
                 failure_counts[failure_type] += 1
     
-    # Calculate fixable runtime errors (runtime_errors - bug_revealing_runtime_errors)
-    fixable_runtime_errors = failure_counts["runtime_error"] - failure_counts["bug_revealing_runtime_error"]
+    # Calculate total runtime errors (fixable + bug-revealing)
+    total_runtime_errors = failure_counts["runtime_error"] + failure_counts["bug_revealing_runtime_error"]
+    fixable_runtime_errors = failure_counts["runtime_error"]  # These are the ones that remained fixable after JCrasher classification
     
     # Only show JCrasher summary for individual runs (not group runs)
     if summary_type == "Individual":
-        print(f"   📊 JCrasher Summary: {failure_counts['runtime_error']} total runtime errors")
+        print(f"   📊 JCrasher Summary: {total_runtime_errors} total runtime errors")
         print(f"   📊 JCrasher Summary: {failure_counts['bug_revealing_runtime_error']} bug-revealing, {fixable_runtime_errors} fixable")
     
     # Log to JSON if logger is provided
@@ -1727,7 +1802,7 @@ def create_detailed_summary(failure_details: Dict[str, str], test_methods: List[
                 total_tests=total_tests,
                 passed=passed_tests,
                 assertion_errors=failure_counts["assertion_error"],
-                runtime_errors=failure_counts["runtime_error"],
+                runtime_errors=total_runtime_errors,  # Use total runtime errors (fixable + bug-revealing)
                 timeout_errors=failure_counts["timeout"],
                 failures=failures_dict,
                 bug_revealing_runtime_errors=failure_counts["bug_revealing_runtime_error"],
@@ -1738,7 +1813,7 @@ def create_detailed_summary(failure_details: Dict[str, str], test_methods: List[
                 total_tests=total_tests,
                 passed=passed_tests,
                 assertion_errors=failure_counts["assertion_error"],
-                runtime_errors=failure_counts["runtime_error"],
+                runtime_errors=total_runtime_errors,  # Use total runtime errors (fixable + bug-revealing)
                 timeout_errors=failure_counts["timeout"],
                 failures=failures_dict,
                 bug_revealing_runtime_errors=failure_counts["bug_revealing_runtime_error"],

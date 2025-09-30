@@ -1063,6 +1063,8 @@ def main():
                     failure_counts = {
                         "assertion_error": 0,
                         "runtime_error": 0,
+                        "bug_revealing_runtime_error": 0,
+                        "fixable_runtime_error": 0,
                         "timeout": 0
                     }
                     # Count the actual failures
@@ -1082,7 +1084,10 @@ def main():
                     print(f"\n   📋 Failure Breakdown:")
                     for method_name, failure_type in failure_types.items():
                         if failure_type is not None:
-                            readable_type = failure_type.replace("_", " ").title()
+                            if failure_type == "bug_revealing_runtime_error":
+                                readable_type = "Bug-Revealing Runtime Error"
+                            else:
+                                readable_type = failure_type.replace("_", " ").title()
                             print(f"      • {method_name}: {readable_type}")
                         else:
                             print(f"      • {method_name}: Unknown Error")
@@ -1097,7 +1102,7 @@ def main():
                         if failure_type is not None:
                             if failure_type == "assertion_error":
                                 failures_dict[method_name] = "Assertion Error"
-                            elif failure_type == "runtime_error":
+                            elif failure_type == "runtime_error" or failure_type == "bug_revealing_runtime_error":
                                 failures_dict[method_name] = "Runtime Error"
                             elif failure_type == "timeout":
                                 failures_dict[method_name] = "Timeout"
@@ -1106,13 +1111,18 @@ def main():
                         else:
                             failures_dict[method_name] = "Unknown Error"
                     
+                    # Calculate total runtime errors (fixable + bug-revealing)
+                    total_runtime_errors = failure_counts["runtime_error"] + failure_counts["bug_revealing_runtime_error"]
+                    
                     json_logger.update_test_execution_summary(
                         total_tests=total_tests_generated,
                         passed=len(passing_tests),
                         assertion_errors=failure_counts["assertion_error"],
-                        runtime_errors=failure_counts["runtime_error"],
+                        runtime_errors=total_runtime_errors,  # Use total runtime errors (fixable + bug-revealing)
                         timeout_errors=failure_counts["timeout"],
-                        failures=failures_dict
+                        failures=failures_dict,
+                        bug_revealing_runtime_errors=failure_counts["bug_revealing_runtime_error"],
+                        fixable_runtime_errors=failure_counts["fixable_runtime_error"]
                     )
                 else:
                     # No failures
@@ -1122,7 +1132,9 @@ def main():
                         assertion_errors=0,
                         runtime_errors=0,
                         timeout_errors=0,
-                        failures={}
+                        failures={},
+                        bug_revealing_runtime_errors=0,
+                        fixable_runtime_errors=0
                     )
         
                 # Save the final test file with only passing tests to the repository

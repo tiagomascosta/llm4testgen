@@ -123,7 +123,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         '--max-fix-attempts',
         type=int,
-        default=7,
+        default=8,
         help='Maximum number of compile-fix loop iterations'
     )
     parser.add_argument(
@@ -143,7 +143,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         '--max-runtime-fix-attempts',
         type=int,
-        default=7,
+        default=8,
         help='Maximum number of runtime-fix loop iterations'
     )
     parser.add_argument(
