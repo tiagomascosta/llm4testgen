@@ -7,6 +7,7 @@ from typing import Dict, List, Optional, Any
 import json
 import csv
 from pathlib import Path
+from utils.colors import Colors
 
 
 @dataclass
@@ -204,7 +205,7 @@ class CoverageReport:
 def format_coverage_display(metrics: CoverageMetrics, indent: str = "   ") -> str:
     """Format coverage metrics for console display."""
     lines = []
-    lines.append(f"{indent}📊 {metrics.target_name} ({metrics.target_type}):")
+    lines.append(f"{indent}{Colors.CYAN}[INFO]{Colors.RESET} {metrics.target_name} ({metrics.target_type}):")
     
     if metrics.total_instructions > 0:
         lines.append(f"{indent}   → Instructions: {metrics.instructions_covered} / {metrics.total_instructions} ({metrics.instruction_coverage:.1f}%)")

@@ -13,6 +13,7 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Dict, Optional, Tuple, List
 from .coverage_metrics import CoverageMetrics, CoverageReport
+from utils.colors import Colors
 from .coverage_config import get_coverage_config
 import re
 
@@ -745,7 +746,7 @@ def display_coverage_results(coverage_results: Dict[str, CoverageMetrics]) -> No
     """
     from .coverage_metrics import format_coverage_display
     
-    print("\n📊 Method Coverage Analysis Results:")
+    print(f"\n{Colors.CYAN}[INFO]{Colors.RESET} Method Coverage Analysis Results:")
     print("─" * 50)
     
     # Only show method coverage, filter out class coverage

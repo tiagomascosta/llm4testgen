@@ -118,6 +118,12 @@ def parse_args() -> argparse.Namespace:
         default='qwen2.5-coder:32b',
         help='Model to use for non-code tasks (e.g. scenario generation). Reasoning models like deepseek-r1 will automatically enable thinking capabilities.'
     )
+    parser.add_argument(
+        '--non-code-model-bug',
+        type=str,
+        default='qwen2.5-coder:32b',
+        help='Model to use for bug hunting scenario generation. Reasoning models like deepseek-r1 will automatically enable thinking capabilities.'
+    )
     
     # Compile-fix loop configuration arguments
     parser.add_argument(

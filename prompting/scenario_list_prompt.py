@@ -40,10 +40,10 @@ def build_scenario_list_prompt(method_info: dict) -> Tuple[str, str]:
     # Extract method type from signature
     method_type = method_info['method_signature'].split()[0]  # Get first word of signature
 
-    system_message = "You are a Senior Java unit‐testing expert. Enumerate every distinct behavior, edge‐case, and error path for a given method."
+    system_message = "You are a Senior Java unit‐testing expert. Enumerate every distinct behavior and error path for a given method."
 
     prompt = f"""=== TASK ===
-Provide a comprehensive list of behaviors, edge cases, and error paths that a unit test should cover for the Method Under Test (MUT) named {method_info['method_name']}, shown in the class below.
+Provide a comprehensive list of behaviors and error paths that a unit test should cover for the Method Under Test (MUT) named {method_info['method_name']}, shown in the class below.
 
 === CLASS UNDER TEST ===
 ```java
@@ -69,4 +69,4 @@ All other code in the class exists only to show how `{method_info['method_name']
 Return exactly one JSON object with the key "scenarios", whose value is an array of one-sentence strings. The JSON must conform to this schema:
 {RawScenarios.model_json_schema()}"""
 
-    return system_message, prompt 
+    return system_message, prompt

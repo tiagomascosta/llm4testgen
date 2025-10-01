@@ -39,7 +39,8 @@ class TestGenerationLogger:
             
             "llm_models": {
                 "code_tasks": None,
-                "non_code_tasks": None
+                "non_code_tasks": None,
+                "bug_hunting_tasks": None
             },
             
             "cli_options": {
@@ -56,6 +57,17 @@ class TestGenerationLogger:
             },
             
             "test_generation": {
+                "total_scenarios": None,
+                "scenarios": {}
+            },
+            
+            "bug_hunting_scenarios": {
+                "raw_scenarios": None,
+                "raw_descriptions": [],
+                "total_scenarios": None
+            },
+            
+            "bug_hunting_test_generation": {
                 "total_scenarios": None,
                 "scenarios": {}
             },
@@ -151,10 +163,12 @@ class TestGenerationLogger:
         """Update dependency analysis information."""
         self.data["dependency_analysis"] = dependency_count
     
-    def update_llm_models(self, code_tasks_model: str, non_code_tasks_model: str):
+    def update_llm_models(self, code_tasks_model: str, non_code_tasks_model: str, bug_hunting_model: str = None):
         """Update LLM model information."""
         self.data["llm_models"]["code_tasks"] = code_tasks_model
         self.data["llm_models"]["non_code_tasks"] = non_code_tasks_model
+        if bug_hunting_model:
+            self.data["llm_models"]["bug_hunting_tasks"] = bug_hunting_model
     
     def update_cli_options(self, max_fix_attempts: int, max_compile_fix_examples: int, max_scaffold_examples: int):
         """Update CLI options."""
@@ -349,6 +363,39 @@ class TestGenerationLogger:
         """Get the current JSON data structure."""
         return self.data.copy()
     
+    def add_bug_hunting_scenarios(self, scenarios: List[str]):
+        """Add bug hunting scenarios."""
+        if "bug_hunting_scenarios" not in self.data:
+            self.data["bug_hunting_scenarios"] = {
+                "raw_scenarios": None,
+                "raw_descriptions": [],
+                "total_scenarios": None
+            }
+        
+        self.data["bug_hunting_scenarios"]["raw_scenarios"] = len(scenarios)
+        self.data["bug_hunting_scenarios"]["raw_descriptions"] = scenarios
+        self.data["bug_hunting_scenarios"]["total_scenarios"] = len(scenarios)
+    
+    def add_bug_hunting_test_generation_scenario(self, scenario_name: str, compiled: bool, 
+                                               compiled_on_first_attempt: bool, fix_attempts: int,
+                                               initial_compile_errors: int = 0):
+        """Add bug hunting test generation result for a specific scenario."""
+        if "bug_hunting_test_generation" not in self.data:
+            self.data["bug_hunting_test_generation"] = {
+                "total_scenarios": None,
+                "scenarios": {}
+            }
+        
+        self.data["bug_hunting_test_generation"]["scenarios"][scenario_name] = {
+            "compiled": compiled,
+            "compiled_on_first_attempt": compiled_on_first_attempt,
+            "fix_attempts": fix_attempts,
+            "initial_compile_errors": initial_compile_errors
+        }
+        
+        # Update total count
+        self.data["bug_hunting_test_generation"]["total_scenarios"] = len(self.data["bug_hunting_test_generation"]["scenarios"])
+
     def update_field(self, field_path: str, value: Any):
         """
         Update a specific field in the JSON structure using dot notation.

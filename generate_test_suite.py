@@ -24,6 +24,7 @@ from init.gradle import GradleConfig
 from init.gradle_build import GradleBuildManager
 from utils.logging import setup_logging
 from utils.json_logger import TestGenerationLogger
+from utils.colors import Colors, step, success, error, warning, info, summary
 from init.maven_build import MavenBuildManager
 from source_analysis import (
     slice_method,
@@ -35,8 +36,10 @@ from source_analysis import (
     generate_test_scaffold
 )
 from prompting.scenario_list_prompt import build_scenario_list_prompt, RawScenarios
+from prompting.bug_hunting_scenario_prompt import build_bug_hunting_scenario_prompt, BugHuntingScenarios
 from prompting.clustering_prompt import build_clustering_prompt, ScenarioList
 from prompting.test_case_prompt import build_test_case_prompt, TestMethodOnly
+from prompting.bug_hunting_test_case_prompt import build_bug_hunting_test_case_prompt, BugHuntingTestMethodOnly
 from llm import OllamaClient
 from init.maven import MavenConfig
 from utils import compile_java_file
@@ -64,18 +67,18 @@ def print_header():
 ███████╗███████╗██║ ╚═╝ ██║     ██║   ██║   ███████╗███████║   ██║   ╚██████╔╝███████╗██║ ╚████║
 ╚══════╝╚══════╝╚═╝     ╚═╝     ╚═╝   ╚═╝   ╚══════╝╚══════╝   ╚═╝    ╚═════╝ ╚══════╝╚═╝  ╚═══╝
                                                                                                 
-                                           Version 1.0.0
+                                           Version 2.0.0
 ''')
     print("") # Add a newline for spacing
 
 def print_step(step_name: str, step_number: int):
     """Print a major step with box-style formatting."""
     # Fixed width for the box
-    box_width = 40  # Reduced from 40 to 38 to fix alignment
+    box_width = 50  # Reduced from 40 to 38 to fix alignment
     # Adjust spacing based on number of digits in step_number
     digit_adjustment = len(str(step_number)) - 1  # 0 for 1-digit, 1 for 2-digit
     print(f"\n\n╭{'─' * box_width}╮")
-    print(f"│ 🧩  Step {step_number}: {step_name}{' ' * (box_width - len(step_name) - 13 - digit_adjustment)}│")
+    print(f"│ {step(f'Step {step_number}:')} {step_name}{' ' * (box_width - len(step_name) - 16 - digit_adjustment)}│")
     print(f"╰{'─' * box_width}╯\n")
 
 def print_success(message: str):
@@ -84,11 +87,11 @@ def print_success(message: str):
 
 def print_warning(message: str):
     """Print a warning message."""
-    print(f"   ⚠️ {message}")
+    print(f"   {warning(message)}")
 
 def print_error(message: str):
     """Print an error message."""
-    print(f"   ❌ {message}")
+    print(f"   {error(message)}")
 
 def print_dependency_summary(deps: dict, flow_control: set):
     """Print a concise summary of dependencies."""
@@ -99,12 +102,12 @@ def print_dependency_summary(deps: dict, flow_control: set):
     # Check if we have any dependencies
     total_deps = sum(category_counts.values())
     if total_deps == 0:
-        print("\n📊 Summary:")
+        print(f"\n{summary('Summary:')}")
         print("   → No dependencies found")
         return
     
     # Print summary with improved formatting
-    print("\n📊 Summary:")
+    print(f"\n{summary('Summary:')}")
     for category, count in category_counts.items():
         # Convert category name to a more readable format
         category_name = category.replace('_', ' ').title()
@@ -144,11 +147,11 @@ def print_selected_java(version: str, source: str):
         version = version.split('.')[1]
     elif '.' in version:
         version = version.split('.')[0]
-    print(f"   ✅ Selected Java version: {version} ({source})\n")
+    print(f"   {success('Selected Java version:')} {version} ({source})\n")
 
 def print_dependencies(dependencies: list):
     """Print added dependencies in a tree-like format."""
-    print("\n   📦 Dependencies added:")
+    print(f"\n   {info('Dependencies added:')}")
     for i, dep in enumerate(dependencies):
         if i == len(dependencies) - 1:
             prefix = "     └─ "
@@ -442,7 +445,7 @@ def main():
         json_logger = TestGenerationLogger(repo_name, target_class, target_method)
         
         # Log LLM models and CLI options (available from command line arguments)
-        json_logger.update_llm_models(args.code_model, args.non_code_model)
+        json_logger.update_llm_models(args.code_model, args.non_code_model, args.non_code_model_bug)
         json_logger.update_cli_options(args.max_fix_attempts, args.max_compile_fix_examples, args.max_scaffold_examples)
         
         print_success(f"Output directory: {structured_output_dir}")
@@ -717,7 +720,8 @@ def main():
         llm_client = OllamaClient(
             base_url="http://localhost:11435/api/chat",
             code_model=args.code_model,
-            non_code_model=args.non_code_model
+            non_code_model=args.non_code_model,
+            bug_hunting_model=args.non_code_model_bug
         )
         
         raw_scenarios = llm_client.call_structured(
@@ -734,15 +738,50 @@ def main():
         json_logger.add_raw_scenarios(raw_scenarios.scenarios)
         
         # Print the response
-        print("📝 Response:")
+        print(f"{info('Response:')}")
         print("─" * 38)
         for idx, scenario in enumerate(raw_scenarios.scenarios, 1):
             print(f"{idx}. {scenario}")
         print("─" * 38 + "\n")
         print_success(f"Generated {len(raw_scenarios.scenarios)} raw scenarios")
         
+        # Step 4.5: Bug Hunting Scenario Generation
+        print_step("Bug Hunting Test Scenario List", 5)
+        
+        # Build bug hunting scenario list prompt
+        system_message, bug_hunting_scenario_prompt = build_bug_hunting_scenario_prompt(method_info)
+        
+        # Generate bug hunting scenarios
+        bug_hunting_scenarios = llm_client.call_structured(
+            messages=[
+                {"role": "system", "content": system_message},
+                {"role": "user", "content": bug_hunting_scenario_prompt}
+            ],
+            schema=BugHuntingScenarios.model_json_schema(),
+            is_code_task=False,
+            use_bug_hunting_model=True
+        )
+        bug_hunting_scenarios = BugHuntingScenarios.model_validate_json(bug_hunting_scenarios)
+        
+        # Add "Bug Hunting: " prefix to titles
+        for scenario in bug_hunting_scenarios.scenarios:
+            scenario.title = f"Bug Hunting: {scenario.title}"
+        
+        # Log bug hunting scenarios (convert to format expected by logger)
+        scenario_descriptions = [scenario.description for scenario in bug_hunting_scenarios.scenarios]
+        json_logger.add_bug_hunting_scenarios(scenario_descriptions)
+        
+        # Print the response
+        print(f"{info('Bug Hunting Response:')}")
+        print("─" * 38)
+        for idx, scenario in enumerate(bug_hunting_scenarios.scenarios, 1):
+            print(f"{idx}. {scenario.title}")
+            print(f"   {scenario.description}")
+        print("─" * 38 + "\n")
+        print_success(f"Generated {len(bug_hunting_scenarios.scenarios)} bug hunting scenarios")
+        
         # Cluster scenarios
-        print_step("Clustering Scenarios", 5)
+        print_step("Clustering Scenarios", 6)
         system_message, clustering_prompt = build_clustering_prompt(
             raw_scenarios.scenarios,
             method_info['method_name'],
@@ -771,7 +810,7 @@ def main():
         json_logger.update_themes(themes)
         
         # Print the response
-        print("📝 Response:")
+        print(f"{info('Response:')}")
         print("─" * 38)
         for idx, scenario in enumerate(clustered_scenarios.scenarios, 1):
             print(f"{idx}. {scenario.title}")
@@ -781,7 +820,7 @@ def main():
         print_success(f"Clustered into {len(clustered_scenarios.scenarios)} scenarios")
         
         # Generate test cases for all clustered scenarios
-        print_step("Test Case Generation", 6)
+        print_step("Test Case Generation", 7)
         
         # Initialize tracking variables
         final_tests = []  # Collect successful test methods
@@ -791,7 +830,7 @@ def main():
         
         # Process each scenario
         for idx, scenario in enumerate(clustered_scenarios.scenarios, 1):
-            print(f"\n📝 Processing scenario {idx}/{len(clustered_scenarios.scenarios)}")
+            print(f"\n{info(f'Processing scenario {idx}/{len(clustered_scenarios.scenarios)}')}")
             print(f"   Theme: {scenario.title}")
             print(f"   Description: {scenario.description}")
             
@@ -857,14 +896,14 @@ def main():
             print_success("Generated test method")
             
             # Try to compile the test method
-            success, assembled_source, compilation_errors = assemble_and_compile_test(
+            compile_success, assembled_source, compilation_errors = assemble_and_compile_test(
                 scaffold=method_info['test_scaffold'],  # Use original scaffold for compilation
                 test_method=test_method.testMethod,
                 repo_path=repo_path,
                 java_home=build_manager.java_home
             )
             
-            if success:
+            if compile_success:
                 print_success("Test method compiled successfully on first attempt")
                 final_tests.append((scenario, test_method.testMethod))
                 recent_successful_tests.append(test_method.testMethod)
@@ -947,7 +986,7 @@ def main():
                     )
         
         # Print summary of results
-        print("\n📊 Test Generation Summary:")
+        print(f"\n{summary('Test Generation Summary:')}")
         print("─" * 38)
         print(f"   Total scenarios processed: {len(clustered_scenarios.scenarios)}")
         print(f"   Successful tests: {len(final_tests)}")
@@ -955,13 +994,193 @@ def main():
         
         if compile_results:
             print(f"\n   Detailed Results:")
-            for title, success, attempts in compile_results:
-                status = "✅" if success else "❌"
+            for title, success_flag, attempts in compile_results:
+                status = success("✓") if success_flag else error("✗")
                 print(f"     {status} {title} ({attempts} attempts)")
         
-        # Step 7: Test Execution & Filtering
+        # Step 7.5: Bug Hunting Test Generation
+        print_step("Bug Hunting Test Generation", 8)
+        
+        # Initialize bug hunting test tracking variables
+        bug_hunting_final_tests = []  # Collect successful bug hunting test methods
+        bug_hunting_compile_results = []  # Track compilation results for each bug hunting scenario
+        
+        # Process each bug hunting scenario
+        for idx, bug_hunting_scenario in enumerate(bug_hunting_scenarios.scenarios, 1):
+            print(f"\n{info(f'Processing bug hunting scenario {idx}/{len(bug_hunting_scenarios.scenarios)}')}")
+            print(f"   Theme: {bug_hunting_scenario.title}")
+            print(f"   Description: {bug_hunting_scenario.description}")
+            
+            # Build scaffold fresh for each bug hunting scenario (start with original scaffold)
+            dynamic_scaffold = method_info['test_scaffold']
+            
+            # Update scaffold with recent successful examples (controlled by CLI argument)
+            if recent_successful_tests and args.max_scaffold_examples > 0:
+                examples_block = "\n// === EXAMPLE TEST METHODS ===\n"
+                for idx_example, method_body in enumerate(recent_successful_tests[-args.max_scaffold_examples:], start=1):
+                    examples_block += f"// Example {idx_example}:\n{method_body}\n\n"
+                
+                # Insert examples into the scaffold
+                indented_examples = "\n".join("    " + line for line in examples_block.splitlines())
+                last_brace_index = dynamic_scaffold.rfind("}")
+                if last_brace_index != -1:
+                    dynamic_scaffold = (
+                        dynamic_scaffold[:last_brace_index] +
+                        "\n" +
+                        indented_examples + "\n" +
+                        dynamic_scaffold[last_brace_index:]
+                    )
+            
+            # Extract method names for uniqueness (use ALL generated names, not just recent ones)
+            from utils.test_result_parser import extract_test_method_names_from_list
+            used_method_names = extract_test_method_names_from_list(recent_successful_tests)
+            
+            # Also include names from tests generated in previous scenarios
+            if all_generated_test_names:
+                used_method_names.extend(all_generated_test_names)
+                used_method_names = list(set(used_method_names))  # Remove duplicates
+            
+            # Build bug hunting test case prompt with updated scaffold
+            system_message, bug_hunting_test_case_prompt = build_bug_hunting_test_case_prompt(
+                mut_sig=method_info['method_signature'],
+                mut_body=method_info['method_code'],
+                scaffold=dynamic_scaffold,  # Use dynamic scaffold with examples
+                scenario=bug_hunting_scenario,
+                helpers=method_info.get('helpers', []),
+                junit_version=junit_version,
+                deps=deps,
+                qualifier_map=qualifier_map,
+                flow_control=flow_control,
+                class_code=method_info['class_code'],
+                repo_root=str(repo_path),
+                imports=load_source(str(class_file))['imports'],
+                src_package=method_info['package'],
+                class_name=method_info['class_name'],
+                used_method_names=used_method_names
+            )
+            
+            # Send prompt to LLM and get response
+            bug_hunting_test_method = llm_client.call_structured(
+                messages=[
+                    {"role": "system", "content": system_message},
+                    {"role": "user", "content": bug_hunting_test_case_prompt}
+                ],
+                schema=BugHuntingTestMethodOnly.model_json_schema(),
+                is_code_task=True
+            )
+            bug_hunting_test_method = BugHuntingTestMethodOnly.model_validate_json(bug_hunting_test_method)
+            
+            print_success("Generated bug hunting test method")
+            
+            # Try to compile the bug hunting test method
+            compile_success, assembled_source, compilation_errors = assemble_and_compile_test(
+                scaffold=method_info['test_scaffold'],  # Use original scaffold for compilation
+                test_method=bug_hunting_test_method.testMethod,
+                repo_path=repo_path,
+                java_home=build_manager.java_home
+            )
+            
+            if compile_success:
+                print_success("Bug hunting test method compiled successfully on first attempt")
+                bug_hunting_final_tests.append((bug_hunting_scenario, bug_hunting_test_method.testMethod))
+                recent_successful_tests.append(bug_hunting_test_method.testMethod)
+                
+                # Extract and track the test method name for uniqueness
+                method_name_match = re.search(r'public\s+void\s+(\w+)\s*\(', bug_hunting_test_method.testMethod)
+                if method_name_match:
+                    all_generated_test_names.append(method_name_match.group(1))
+                
+                bug_hunting_compile_results.append((bug_hunting_scenario.title, True, 1))  # (title, success, attempts)
+                
+                # Log successful compilation on first attempt
+                json_logger.add_bug_hunting_test_generation_scenario(
+                    scenario_name=bug_hunting_scenario.title,
+                    compiled=True,
+                    compiled_on_first_attempt=True,
+                    fix_attempts=0,  # Fixed: should be 0 when compiled on first attempt
+                    initial_compile_errors=0  # No errors on first attempt
+                )
+                
+                # Keep only the last 5 successful tests for examples
+                if len(recent_successful_tests) > args.max_scaffold_examples:
+                    recent_successful_tests.pop(0)
+            else:
+                # Import the compile-fix loop
+                from utils.compile_fix_loop import compile_fix_loop
+                
+                # Count initial compilation errors for logging
+                initial_error_count = count_errors(compilation_errors)
+                
+                # Run the compile-fix loop with the compilation errors
+                fix_success, final_bug_hunting_test_method, attempts_made = compile_fix_loop(
+                    test_method=bug_hunting_test_method.testMethod,
+                    scaffold=method_info['test_scaffold'],  # Use original scaffold for compilation
+                    repo_path=repo_path,
+                    java_home=build_manager.java_home,
+                    class_code=method_info['class_code'],
+                    junit_version=junit_version,
+                    llm_client=llm_client,
+                    compilation_errors=compilation_errors,  # Pass the compilation errors
+                    max_attempts=args.max_fix_attempts,
+                    recent_successful_tests=recent_successful_tests,
+                    max_examples=args.max_compile_fix_examples
+                )
+                
+                if fix_success:
+                    bug_hunting_final_tests.append((bug_hunting_scenario, final_bug_hunting_test_method))
+                    recent_successful_tests.append(final_bug_hunting_test_method)
+                    
+                    # Extract and track the test method name for uniqueness
+                    method_name_match = re.search(r'public\s+void\s+(\w+)\s*\(', final_bug_hunting_test_method)
+                    if method_name_match:
+                        all_generated_test_names.append(method_name_match.group(1))
+                    
+                    bug_hunting_compile_results.append((bug_hunting_scenario.title, True, attempts_made + 1))  # Add 1 for initial attempt
+                    
+                    # Log successful compilation after fix attempts
+                    json_logger.add_bug_hunting_test_generation_scenario(
+                        scenario_name=bug_hunting_scenario.title,
+                        compiled=True,
+                        compiled_on_first_attempt=False,
+                        fix_attempts=attempts_made,
+                        initial_compile_errors=initial_error_count
+                    )
+                    
+                    # Keep only the last 5 successful tests for examples
+                    if len(recent_successful_tests) > args.max_scaffold_examples:
+                        recent_successful_tests.pop(0)
+                else:
+                    print_error(f"Bug hunting test method failed to compile after {attempts_made} fix attempts")
+                    bug_hunting_compile_results.append((bug_hunting_scenario.title, False, attempts_made + 1))  # Add 1 for initial attempt
+                    
+                    # Log failed compilation after fix attempts
+                    json_logger.add_bug_hunting_test_generation_scenario(
+                        scenario_name=bug_hunting_scenario.title,
+                        compiled=False,
+                        compiled_on_first_attempt=False,
+                        fix_attempts=attempts_made,
+                        initial_compile_errors=initial_error_count
+                    )
+        
+        # Print summary of bug hunting test results
+        print(f"\n{summary('Bug Hunting Test Generation Summary:')}")
+        print("─" * 38)
+        print(f"   Total bug hunting scenarios processed: {len(bug_hunting_scenarios.scenarios)}")
+        print(f"   Successful bug hunting tests: {len(bug_hunting_final_tests)}")
+        print(f"   Failed bug hunting tests: {len(bug_hunting_scenarios.scenarios) - len(bug_hunting_final_tests)}")
+        
+        if bug_hunting_compile_results:
+            print(f"\n   Detailed Bug Hunting Results:")
+            for title, success_flag, attempts in bug_hunting_compile_results:
+                status = success("✓") if success_flag else error("✗")
+                print(f"     {status} {title} ({attempts} attempts)")
+        
+        # Add bug hunting tests to the final tests list
+        final_tests.extend(bug_hunting_final_tests)
+        
+        # Step 8: Test Execution & Filtering
         if final_tests:
-            print_step("Test Execution & Filtering", 7)
+            print_step("Test Execution & Filtering", 8)
             
             # Detect build system
             try:
@@ -1047,15 +1266,15 @@ def main():
                 # Show which tests were excluded due to timeouts
                 timeout_tests = [method for method, failure_type in failure_types.items() if failure_type == "timeout"]
                 if timeout_tests:
-                    print(f"\n⚠️ Tests Excluded from Final File (Timeouts):")
+                    print(f"\n{warning('Tests Excluded from Final File (Timeouts):')}")
                     for i, method_name in enumerate(timeout_tests, 1):
                         print(f"   {i}. {method_name}")
                 
                 # Print enhanced execution summary with failure types
-                print("\n📊 General Test Execution Summary:")
+                print(f"\n{summary('General Test Execution Summary:')}")
                 print("─" * 50)
                 print(f"   Total tests executed: {total_tests_generated}")
-                print(f"   ✅ Passing tests: {len(passing_tests)}")
+                print(f"   {success('Passing tests:')} {len(passing_tests)}")
                 
                 # Add failure breakdown to the failed count line
                 if failure_types:
@@ -1078,10 +1297,10 @@ def main():
                         failure_breakdown_parts.append(f"{count} {readable_type}")
                     
                     failure_info = f" ({', '.join(failure_breakdown_parts)})"
-                    print(f"   ❌ Failing tests: {total_tests_generated - len(passing_tests)}{failure_info}")
+                    print(f"   {error('Failing tests:')} {total_tests_generated - len(passing_tests)}{failure_info}")
                     
                     # Add detailed failure information with renamed section
-                    print(f"\n   📋 Failure Breakdown:")
+                    print(f"\n   {info('Failure Breakdown:')}")
                     for method_name, failure_type in failure_types.items():
                         if failure_type is not None:
                             if failure_type == "bug_revealing_runtime_error":
@@ -1092,7 +1311,7 @@ def main():
                         else:
                             print(f"      • {method_name}: Unknown Error")
                 else:
-                    print(f"   ❌ Failing tests: {total_tests_generated - len(passing_tests)}")
+                    print(f"   {error('Failing tests:')} {total_tests_generated - len(passing_tests)}")
                 
                 # Log general test execution summary
                 if failure_types:
@@ -1233,9 +1452,9 @@ def main():
                     else:
                         print_warning("No passing tests to save - skipping coverage analysis")
         
-        # Step 8: Coverage Analysis
+        # Step 9: Coverage Analysis
         if final_tests:
-            print_step("Coverage Analysis", 8)
+            print_step("Coverage Analysis", 9)
             
             # Verify the test file exists in the repository before running coverage
             if not test_file_path.exists():
@@ -1358,16 +1577,16 @@ def main():
             else:
                 print_error("Failed to generate coverage report")
         
-        # Step 9: Final File Assembly (only with passing tests)
+        # Step 10: Final File Assembly (only with passing tests)
         if final_tests:
-            print_step("Final File Assembly", 9)
+            print_step("Final File Assembly", 10)
             print_success(f"Final test file assembled with {len(final_tests)} passing test methods")
             
             # The test file has already been saved to the repository in Step 7
             # Just display the final content for verification
             if test_file_path.exists():
                 final_content = test_file_path.read_text(encoding='utf-8')
-                print("\n📝 Final Test File Content:")
+                print(f"\n{info('Final Test File Content:')}")
                 print("─" * 38)
                 print(final_content)
                 print("─" * 38)
@@ -1406,9 +1625,9 @@ def main():
         llm_metrics = llm_client.get_metrics()
         json_logger.update_llm_metrics(llm_metrics["request_count"], llm_metrics["total_response_time"])
         
-        # Step 10: Bug Assessment (always run regression detection)
+        # Step 11: Bug Assessment (always run regression detection)
         if args.fix_commit_hash:
-            print_step("Bug Assessment", 10)
+            print_step("Bug Assessment", 11)
             print_success(f"Testing against fix commit: {args.fix_commit_hash}")
             
             # Import bug assessment module
@@ -1438,7 +1657,7 @@ def main():
                 )
                 
                 # Display regression results (always shown)
-                print(f"\n📊 Regression Detection Results:")
+                print(f"\n{summary('Regression Detection Results:')}")
                 print("─" * 50)
                 regression_detected = regression_results.get('regression_detected', False)
                 total_tests = regression_results.get('total_tests', 0)
@@ -1448,11 +1667,11 @@ def main():
                 
                 print(f"   Regression detected: {'Yes' if regression_detected else 'No'}")
                 print(f"   Total tests: {total_tests}")
-                print(f"   ✅ Passed: {passed_tests}")
-                print(f"   ❌ Failed: {failed_tests}")
+                print(f"   {success('Passed:')} {passed_tests}")
+                print(f"   {error('Failed:')} {failed_tests}")
                 
                 if failing_tests:
-                    print(f"   📋 Failing tests: {', '.join(failing_tests)}")
+                    print(f"   {info('Failing tests:')} {', '.join(failing_tests)}")
                 
                 # Display potential bugs results (only if tests were run)
                 if run_potential_bugs and bug_results:

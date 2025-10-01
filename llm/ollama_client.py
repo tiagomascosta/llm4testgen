@@ -15,6 +15,7 @@ class OllamaClient:
         base_url: str,
         code_model: str,
         non_code_model: str,
+        bug_hunting_model: str = None,
         max_retries: int = 3,
         retry_delay: float = 5.0,
         timeout: int = 90,
@@ -27,6 +28,7 @@ class OllamaClient:
             base_url: The base URL for the Ollama API
             code_model: The model to use for code-related tasks
             non_code_model: The model to use for non-code tasks (e.g. scenarios)
+            bug_hunting_model: The model to use for bug hunting scenario generation
             max_retries: Maximum number of retries for failed requests
             retry_delay: Delay between retries in seconds
             timeout: Request timeout in seconds
@@ -35,6 +37,7 @@ class OllamaClient:
         self.base_url = base_url
         self.code_model = code_model
         self.non_code_model = non_code_model
+        self.bug_hunting_model = bug_hunting_model or non_code_model  # Default to non_code_model if not provided
         self.max_retries = max_retries
         self.retry_delay = retry_delay
         self.timeout = timeout
@@ -60,6 +63,7 @@ class OllamaClient:
         model: Optional[str] = None,
         schema: Optional[Dict[str, Any]] = None,
         is_code_task: bool = True,
+        use_bug_hunting_model: bool = False,
         attempt: int = 1
     ) -> str:
         """
@@ -70,6 +74,7 @@ class OllamaClient:
             model: Optional model override
             schema: Optional JSON schema for structured output
             is_code_task: Whether this is a code-related task (uses code_model) or not (uses non_code_model)
+            use_bug_hunting_model: Whether to use the bug hunting model for this request
             attempt: Current attempt number (for retries)
             
         Returns:
@@ -82,7 +87,12 @@ class OllamaClient:
         request_start_time = time.time()
         
         # Choose model based on task type if not explicitly provided
-        chosen_model = model or (self.code_model if is_code_task else self.non_code_model)
+        if model:
+            chosen_model = model
+        elif use_bug_hunting_model:
+            chosen_model = self.bug_hunting_model
+        else:
+            chosen_model = self.code_model if is_code_task else self.non_code_model
         
         # Check if this is a reasoning model
         is_reasoning = self._is_reasoning_model(chosen_model)
@@ -120,7 +130,7 @@ class OllamaClient:
                 logger.warning("Response appears to be truncated, retrying with larger context...")
                 if attempt < self.max_retries:
                     time.sleep(self.retry_delay)
-                    return self._make_request(messages, model, schema, is_code_task, attempt + 1)
+                    return self._make_request(messages, model, schema, is_code_task, use_bug_hunting_model, attempt + 1)
                 else:
                     raise RuntimeError("Response was truncated and max retries exceeded")
             
@@ -128,7 +138,7 @@ class OllamaClient:
             if not content and attempt < self.max_retries:
                 logger.debug(f"Empty response received, retrying (attempt {attempt + 1}/{self.max_retries})")
                 time.sleep(self.retry_delay)
-                return self._make_request(messages, model, schema, is_code_task, attempt + 1)
+                return self._make_request(messages, model, schema, is_code_task, use_bug_hunting_model, attempt + 1)
             
             return content
             
@@ -143,7 +153,7 @@ class OllamaClient:
             if attempt < self.max_retries:
                 logger.debug(f"Connection failed, retrying (attempt {attempt + 1}/{self.max_retries})")
                 time.sleep(self.retry_delay)
-                return self._make_request(messages, model, schema, is_code_task, attempt + 1)
+                return self._make_request(messages, model, schema, is_code_task, use_bug_hunting_model, attempt + 1)
             else:
                 raise RuntimeError() from e
         except (HTTPError, Timeout) as e:
@@ -157,7 +167,7 @@ class OllamaClient:
             if attempt < self.max_retries:
                 logger.debug(f"Request failed, retrying (attempt {attempt + 1}/{self.max_retries})")
                 time.sleep(self.retry_delay)
-                return self._make_request(messages, model, schema, is_code_task, attempt + 1)
+                return self._make_request(messages, model, schema, is_code_task, use_bug_hunting_model, attempt + 1)
             else:
                 raise RuntimeError() from e
 
@@ -166,7 +176,8 @@ class OllamaClient:
         messages: List[Dict[str, Any]],
         schema: Dict[str, Any],
         model: Optional[str] = None,
-        is_code_task: bool = True
+        is_code_task: bool = True,
+        use_bug_hunting_model: bool = False
     ) -> str:
         """
         Make a structured request to Ollama with schema validation.
@@ -176,6 +187,7 @@ class OllamaClient:
             schema: JSON schema for structured output
             model: Optional model override
             is_code_task: Whether this is a code-related task (uses code_model) or not (uses non_code_model)
+            use_bug_hunting_model: Whether to use the bug hunting model for this request
             
         Returns:
             The response content as a string
@@ -186,7 +198,7 @@ class OllamaClient:
         attempt = 1
         while attempt <= self.max_retries:
             try:
-                content = self._make_request(messages, model, schema, is_code_task)
+                content = self._make_request(messages, model, schema, is_code_task, use_bug_hunting_model)
                 
                 # First try to parse as JSON
                 try:

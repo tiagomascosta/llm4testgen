@@ -8,6 +8,7 @@ import logging
 from pathlib import Path
 from typing import List, Optional, Union, Tuple
 import os
+from utils.colors import Colors
 from config import test_config
 from init.build import _ensure_sdkman_installed, _install_jdk_with_sdkman
 from .compile_java_file import compile_java_file, has_spring_javaformat_plugin, verify_compiled_class
@@ -93,7 +94,7 @@ def assemble_and_compile_test(
     # Find the last closing brace in the scaffold
     last_brace_pos = scaffold.rfind('}')
     if last_brace_pos == -1:
-        print("❌ Could not find closing brace in scaffold")
+        print(f"{Colors.BRIGHT_RED}[ERROR]{Colors.RESET} Could not find closing brace in scaffold")
         return False, "Could not find closing brace in scaffold", "Could not find closing brace in scaffold"
         
     # Insert the test method before the last brace
@@ -102,7 +103,7 @@ def assemble_and_compile_test(
     # Get the test file path from config
     test_file_path = test_config.get_test_file_path()
     if not test_file_path:
-        print("❌ Could not find test file path in config")
+        print(f"{Colors.BRIGHT_RED}[ERROR]{Colors.RESET} Could not find test file path in config")
         return False, assembled_source, "Could not find test file path in config"
     
     test_file = Path(test_file_path)
@@ -120,7 +121,7 @@ def assemble_and_compile_test(
         
         return success, assembled_source, compilation_errors
     except Exception as e:
-        print(f"❌ Error during test assembly/compilation: {str(e)}")
+        print(f"{Colors.BRIGHT_RED}[ERROR]{Colors.RESET} Error during test assembly/compilation: {str(e)}")
         # Clean up on error
         if test_file.exists():
             test_file.unlink()
@@ -213,13 +214,13 @@ def compile_and_capture_output(test_file: Path, repo_path: Path, java_home: str 
         class_found = verify_compiled_class(test_file, repo_path)
         
         if build_success and class_found:
-            print(f"   ✅ Compilation successful")
+            print(f"   {Colors.BRIGHT_GREEN}[SUCCESS]{Colors.RESET} Compilation successful")
             return True, compilation_output
         else:
-            print("   ❌ Compilation failed")
+            print(f"   {Colors.BRIGHT_RED}[ERROR]{Colors.RESET} Compilation failed")
             return False, compilation_output
             
     except subprocess.CalledProcessError as e:
         error_output = f"Compilation failed with error: {str(e)}"
-        print(f"   ❌ {error_output}")
+        print(f"   {Colors.BRIGHT_RED}[ERROR]{Colors.RESET} {error_output}")
         return False, error_output 

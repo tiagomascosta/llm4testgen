@@ -10,6 +10,7 @@ from .test_executor import run_individual_test, categorize_test_failure
 from .build_system_detector import BuildSystem
 from config import test_config
 from init.repository import RepositoryManager
+from utils.colors import Colors, step, success, error, warning, info, summary
 
 
 
@@ -69,7 +70,7 @@ def test_single_bug_assessment(
     Returns:
         Result string: "bug_revealed", "assertion_error", "runtime_error", "timeout", "invalid_filename"
     """
-    print(f"   🔍 Testing: {test_file.name}")
+    print(f"   {info('Testing:')} {test_file.name}")
     
     # Read the test content to extract the actual class name
     test_content = test_file.read_text()
@@ -103,12 +104,10 @@ def test_single_bug_assessment(
         )
         
         if success:
-            print(f"   ✅ Result: Bug revealed! Test passes on fix commit")
             return "bug_revealed"  # Test passes on fix commit!
         else:
             # Categorize the failure
             failure_type = categorize_test_failure(output, build_system)
-            print(f"   ❌ Result: {failure_type.replace('_', ' ').title()}")
             return failure_type  # "assertion_error", "runtime_error", "timeout"
             
     finally:
@@ -144,13 +143,13 @@ def run_final_test_suite_on_fix_commit(
         test_suite_dir = output_dir / "test_suite"
     
     if not test_suite_dir.exists():
-        print(f"   ⚠️ Test suite directory not found at {test_suite_dir}")
+        print(f"   {warning('Test suite directory not found at')} {test_suite_dir}")
         return {"passed": 0, "failed": 0}
     
     # Look for the .java file in the test_suite directory
     java_files = list(test_suite_dir.glob("*.java"))
     if not java_files:
-        print(f"   ⚠️ No .java files found in test suite directory {test_suite_dir}")
+        print(f"   {warning('No .java files found in test suite directory')} {test_suite_dir}")
         return {"passed": 0, "failed": 0}
     
     # Use the first .java file found (should be the only one)
@@ -162,7 +161,7 @@ def run_final_test_suite_on_fix_commit(
     import re
     class_match = re.search(r'public\s+class\s+(\w+)', test_content)
     if not class_match:
-        print(f"   ⚠️ Could not extract class name from final test suite")
+        print(f"   {warning('Could not extract class name from final test suite')}")
         return {"passed": 0, "failed": 0}
     
     class_name = class_match.group(1)
@@ -334,13 +333,13 @@ def run_final_test_suite_on_fix_commit_enhanced(
         test_suite_dir = output_dir / "test_suite"
     
     if not test_suite_dir.exists():
-        print(f"   ⚠️ Test suite directory not found at {test_suite_dir}")
+        print(f"   {warning('Test suite directory not found at')} {test_suite_dir}")
         return {"regression_detected": False, "total_tests": 0, "passed": 0, "failed": 0, "failures": []}
     
     # Look for the .java file in the test_suite directory
     java_files = list(test_suite_dir.glob("*.java"))
     if not java_files:
-        print(f"   ⚠️ No .java files found in test suite directory {test_suite_dir}")
+        print(f"   {warning('No .java files found in test suite directory')} {test_suite_dir}")
         return {"regression_detected": False, "total_tests": 0, "passed": 0, "failed": 0, "failures": []}
     
     # Use the first .java file found (should be the only one)
@@ -352,7 +351,7 @@ def run_final_test_suite_on_fix_commit_enhanced(
     import re
     class_match = re.search(r'public\s+class\s+(\w+)', test_content)
     if not class_match:
-        print(f"   ⚠️ Could not extract class name from final test suite")
+        print(f"   {warning('Could not extract class name from final test suite')}")
         return {"regression_detected": False, "total_tests": 0, "passed": 0, "failed": 0, "failures": []}
     
     class_name = class_match.group(1)
@@ -362,7 +361,7 @@ def run_final_test_suite_on_fix_commit_enhanced(
     test_methods = extract_test_method_names(test_content)
     
     if not test_methods:
-        print(f"   ⚠️ No test methods found in final test suite")
+        print(f"   {warning('No test methods found in final test suite')}")
         return {"regression_detected": False, "total_tests": 0, "passed": 0, "failed": 0, "failures": []}
     
     # Construct the target path in the repository
@@ -677,14 +676,14 @@ def display_bug_assessment_results(bug_results: Dict[str, str]):
     still_failing_count = len(bug_results) - bug_revealed_count
     bug_found = bug_revealed_count > 0
     
-    print(f"\n🐛 Bug Assessment Results:")
+    print(f"\n{summary('Bug Assessment Results:')}")
     print("─" * 50)
     print(f"   Total potential bug-revealing tests: {len(bug_results)}")
-    print(f"   🎯 Bug successfully revealed: {'Yes' if bug_found else 'No'}")
-    print(f"   ❌ Still failing: {still_failing_count}")
+    print(f"   {info('Bug successfully revealed:')} {'Yes' if bug_found else 'No'}")
+    print(f"   {error('Still failing:')} {still_failing_count}")
     
     if bug_found:
-        print(f"\n   🎉 SUCCESS! The following tests revealed real bugs:")
+        print(f"\n   {success('SUCCESS! The following tests revealed real bugs:')}")
         for test_file, result in bug_results.items():
             if result == "bug_revealed":
                 print(f"      • {test_file}")
@@ -702,7 +701,7 @@ def display_bug_assessment_results(bug_results: Dict[str, str]):
             if result in failure_counts:
                 failure_counts[result] += 1
         
-        print(f"\n   📋 Failure Breakdown:")
+        print(f"\n   {info('Failure Breakdown:')}")
         for failure_type, count in failure_counts.items():
             if count > 0:
                 readable_type = failure_type.replace("_", " ").title()

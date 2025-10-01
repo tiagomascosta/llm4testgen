@@ -5,6 +5,7 @@ from prompting import build_compile_fix_prompt, CodeOnly
 from llm import OllamaClient
 from utils.compiler import assemble_and_compile_test
 from config import test_config
+from utils.colors import Colors, step, success, error, warning, info, summary
 import os
 import subprocess
 import re
@@ -175,7 +176,7 @@ def compile_fix_loop(
     
     # Count errors from the initial compilation
     best_error_count = count_errors(compilation_errors)
-    print(f"   ⚠️ Test method failed to compile ({best_error_count} errors), starting compile-fix loop")
+    print(f"   {warning('Test method failed to compile')} ({best_error_count} errors), starting compile-fix loop")
     
     # Filter compilation errors for Maven projects
     filtered_compilation_errors = compilation_errors
@@ -214,11 +215,11 @@ def compile_fix_loop(
             
             # Check if the response is valid
             if not new_test_method or new_test_method in ("{}", "{ }", "{\n}", "{\r\n}", "{\n    }"):
-                print(f"   🔧 Fix attempt {attempt}/{max_attempts} - ⚠️ Invalid response from LLM")
+                print(f"   {info('Fix attempt')} {attempt}/{max_attempts} - {warning('Invalid response from LLM')}")
                 continue
                 
         except Exception as e:
-            print(f"   🔧 Fix attempt {attempt}/{max_attempts} - ⚠️ Failed to get fix from LLM")
+            print(f"   {info('Fix attempt')} {attempt}/{max_attempts} - {warning('Failed to get fix from LLM')}")
             continue
         
         # Compile the new test method to check if it works
@@ -243,7 +244,7 @@ def compile_fix_loop(
             
             # Check if this attempt actually succeeded
             if result.returncode == 0:
-                print(f"   🔧 Fix attempt {attempt}/{max_attempts} - ✅ Compilation successful")
+                print(f"   {info('Fix attempt')} {attempt}/{max_attempts} - {success('Compilation successful')}")
                 return True, new_test_method, attempts_made
             
         finally:
@@ -254,9 +255,9 @@ def compile_fix_loop(
         # Update the best test method and error count for the next iteration
         if new_error_count <= best_error_count:
             if new_error_count < best_error_count:
-                print(f"   🔧 Fix attempt {attempt}/{max_attempts} - 📈 Improved to {new_error_count} errors")
+                print(f"   {info('Fix attempt')} {attempt}/{max_attempts} - {success('Improved to')} {new_error_count} errors")
             else:
-                print(f"   🔧 Fix attempt {attempt}/{max_attempts} - 📉 Still {best_error_count} errors")
+                print(f"   {info('Fix attempt')} {attempt}/{max_attempts} - {warning('Still')} {best_error_count} errors")
                 
             best_test_method = new_test_method
             best_error_count = new_error_count
@@ -264,7 +265,7 @@ def compile_fix_loop(
             filtered_compilation_errors = filtered_new_compilation_errors
         else:
             # Error count increased, don't update best
-            print(f"   🔧 Fix attempt {attempt}/{max_attempts} - 📉 Still {best_error_count} errors")
+            print(f"   {info('Fix attempt')} {attempt}/{max_attempts} - {warning('Still')} {best_error_count} errors")
     
     # If we get here, we've exhausted all attempts
     return False, best_test_method, attempts_made 

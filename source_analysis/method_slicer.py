@@ -10,6 +10,7 @@ from typing import Optional, Tuple, List, Dict, Any, Set
 import javalang
 from .slice_extractor import SliceExtractor
 from .source_resolver import resolve_source_file
+from utils.colors import Colors
 
 logger = logging.getLogger(__name__)
 
@@ -305,12 +306,12 @@ def get_method_definition(
     Returns (method_impl, class_name) tuple.
     """
     try:
-        print(f"\n🔍 Getting method definition for: {qualifier}.{method_name}({arity})")
+        print(f"\n{Colors.CYAN}[INFO]{Colors.RESET} Getting method definition for: {qualifier}.{method_name}({arity})")
         
         # Find the source file
         file_path = resolve_source_file(repo_root, imports, src_package, qualifier)
         if not file_path:
-            print(f"  ❌ Could not find source file for {qualifier}")
+            print(f"  {Colors.BRIGHT_RED}[ERROR]{Colors.RESET} Could not find source file for {qualifier}")
             return None, None
             
         print(f"  → Found source file: {file_path}")
@@ -328,14 +329,14 @@ def get_method_definition(
         )
         
         if method_impl:
-            print(f"  ✅ Found method implementation")
+            print(f"  {Colors.BRIGHT_GREEN}[SUCCESS]{Colors.RESET} Found method implementation")
             return method_impl, class_name
             
-        print(f"  ❌ Could not find method implementation")
+        print(f"  {Colors.BRIGHT_RED}[ERROR]{Colors.RESET} Could not find method implementation")
         return None, None
         
     except Exception as e:
-        print(f"  ❌ Error getting method definition: {str(e)}")
+        print(f"  {Colors.BRIGHT_RED}[ERROR]{Colors.RESET} Error getting method definition: {str(e)}")
         return None, None
 
 def parse_method_node(src: str, method_name: str) -> Tuple[javalang.tree.ClassDeclaration, javalang.tree.MethodDeclaration]:

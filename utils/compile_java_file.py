@@ -6,6 +6,7 @@ import shutil
 import xml.etree.ElementTree as ET
 from config import test_config
 from init.build import _ensure_sdkman_installed, _install_jdk_with_sdkman
+from utils.colors import Colors
 
 logger = logging.getLogger(__name__)
 
@@ -75,14 +76,14 @@ def ensure_test_package_matches(test_file: Path, repo_path: Path) -> bool:
         with open(test_file, 'r') as f:
             content = f.read()
     except Exception as e:
-        print(f"❌ Error reading test file: {str(e)}")
+        print(f"{Colors.BRIGHT_RED}[ERROR]{Colors.RESET} Error reading test file: {str(e)}")
         return False
         
     # Extract current package declaration
     import re
     package_match = re.search(r'package\s+([^;]+);', content)
     if not package_match:
-        print("❌ No package declaration found in test file")
+        print(f"{Colors.BRIGHT_RED}[ERROR]{Colors.RESET} No package declaration found in test file")
         return False
         
     # The package declaration is already correct from test_scaffold.py
@@ -297,7 +298,7 @@ def compile_java_file(test_file: Path, repo_path: Path, java_home: str = None) -
             maven_project = MavenConfig(repo_path)
             maven_project.configure_sortpom_plugin()
         except Exception as e:
-            print(f"   ⚠️ Warning: Could not configure sortpom plugin: {e}")
+            print(f"   {Colors.YELLOW}[WARNING]{Colors.RESET} Could not configure sortpom plugin: {e}")
     
     # Run compilation
     try:
@@ -324,13 +325,13 @@ def compile_java_file(test_file: Path, repo_path: Path, java_home: str = None) -
         version_error = "UnsupportedClassVersionError" in result.stderr
         
         if build_success and class_found:
-            print(f"   ✅ Compilation successful")
+            print(f"   {Colors.BRIGHT_GREEN}[SUCCESS]{Colors.RESET} Compilation successful")
             return True
         else:
             # If compilation failed and we're using Java < 11, try with Java 11
             current_version = parse_java_version(java_version)
             if current_version < 11 and (not build_success or version_error):
-                print(f"⚠️ Compilation failed with Java {current_version}")
+                print(f"{Colors.YELLOW}[WARNING]{Colors.RESET} Compilation failed with Java {current_version}")
                 
                 java11_path = get_java11_path()
                 if java11_path:
@@ -354,18 +355,18 @@ def compile_java_file(test_file: Path, repo_path: Path, java_home: str = None) -
                     class_found = verify_compiled_class(test_file, repo_path)
                     
                     if build_success and class_found:
-                        print(f"   ✅ Compilation successful with Java 11")
+                        print(f"   {Colors.BRIGHT_GREEN}[SUCCESS]{Colors.RESET} Compilation successful with Java 11")
                         # Update test configuration to use Java 11
                         test_config.set_java_version("11")
                         test_config.set_java_path(java11_path)
-                        print("✅ Updated test configuration to use Java 11")
+                        print(f"{Colors.BRIGHT_GREEN}[SUCCESS]{Colors.RESET} Updated test configuration to use Java 11")
                         return True
                 else:
-                    print("❌ Java 11 not found. Please install Java 11 to compile with ANTLR4 plugin.")
+                    print(f"{Colors.BRIGHT_RED}[ERROR]{Colors.RESET} Java 11 not found. Please install Java 11 to compile with ANTLR4 plugin.")
             
-            print("   ❌ Compilation failed")
+            print(f"   {Colors.BRIGHT_RED}[ERROR]{Colors.RESET} Compilation failed")
             return False
             
     except subprocess.CalledProcessError as e:
-        print(f"   ❌ Compilation failed with error: {str(e)}")
+        print(f"   {Colors.BRIGHT_RED}[ERROR]{Colors.RESET} Compilation failed with error: {str(e)}")
         return False 

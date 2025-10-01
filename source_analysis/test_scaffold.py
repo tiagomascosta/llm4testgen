@@ -8,6 +8,7 @@ from pathlib import Path
 from config import test_config
 import logging
 import javalang
+from utils.colors import Colors
 
 logger = logging.getLogger(__name__)
 
@@ -372,9 +373,9 @@ def generate_test_scaffold(
         for existing_file in existing_test_files:
             try:
                 existing_file.unlink()
-                print(f"   🗑️  Deleted existing test file: {existing_file.relative_to(repo_path)}")
+                print(f"   {Colors.YELLOW}[DELETED]{Colors.RESET} Deleted existing test file: {existing_file.relative_to(repo_path)}")
             except Exception as e:
-                print(f"   ⚠️  Could not delete existing test file {existing_file.relative_to(repo_path)}: {e}")
+                print(f"   {Colors.YELLOW}[WARNING]{Colors.RESET} Could not delete existing test file {existing_file.relative_to(repo_path)}: {e}")
     
     # Write the test file to disk (this will overwrite if file exists)
     test_file.write_text(scaffold_str, encoding='utf-8')
