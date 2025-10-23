@@ -450,7 +450,9 @@ def main():
         
         print_success(f"Output directory: {structured_output_dir}")
         
-        repo_manager = RepositoryManager(structured_output_dir)
+        # Set up input directory if provided
+        input_dir = Path(args.input_dir) if args.input_dir else None
+        repo_manager = RepositoryManager(structured_output_dir, input_dir)
         
         current_working_directory = Path.cwd()
 

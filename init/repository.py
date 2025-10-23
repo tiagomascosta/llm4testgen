@@ -11,17 +11,22 @@ logger.setLevel(logging.ERROR)
 class RepositoryManager:
     """Manages repository operations."""
     
-    def __init__(self, output_dir: Path):
+    def __init__(self, output_dir: Path, input_dir: Path = None):
         """Initialize repository manager.
         
         Args:
             output_dir: Directory to store repositories
+            input_dir: Directory to store cloned repositories (default: implementation/input)
         """
         self.output_dir = output_dir
         self.output_dir.mkdir(parents=True, exist_ok=True)
         
-        # Set up input directory inside implementation
-        self.input_dir = Path(__file__).parent.parent / 'input'
+        # Set up input directory
+        if input_dir is not None:
+            self.input_dir = Path(input_dir)
+        else:
+            # Default input directory inside implementation
+            self.input_dir = Path(__file__).parent.parent / 'input'
         self.input_dir.mkdir(parents=True, exist_ok=True)
     
     def clone_repository(self, repo_url: str, commit_hash: str = None) -> Path:

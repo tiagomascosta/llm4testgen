@@ -98,6 +98,11 @@ def parse_args() -> argparse.Namespace:
         help='Directory to store generated test suites'
     )
     parser.add_argument(
+        '--input-dir',
+        type=str,
+        help='Directory to store cloned repositories (default: implementation/input)'
+    )
+    parser.add_argument(
         '--log-level',
         type=str,
         choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'],

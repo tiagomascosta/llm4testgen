@@ -13,6 +13,7 @@ output/
 
 # Optional: inputs (if they’re local/test files)
 input/
+input2/
 system_architecture/
 image/
 experiments/
