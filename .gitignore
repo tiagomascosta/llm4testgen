@@ -10,6 +10,7 @@ __pycache__/
 # Logs and outputs
 logs/
 output/
+output2/
 
 # Optional: inputs (if they’re local/test files)
 input/
