@@ -68,7 +68,7 @@ Given a list of raw scenario sentences, group them into high‐level test themes
 === INSTRUCTIONS ===
 1. Identify groups of raw sentences that test essentially the same logic in `{method_name}`.
    - For example, "sentence too short" and "hex substring at indices 6–8 fails to parse" both relate to parsing errors and should be folded together.
-   - If two or more raw scenarios truly share the same testing concern (e.g. "null input → expect null" vs. "empty string → expect null"), collapse them under a single theme.
+   - If two or more raw scenarios truly share the same testing concern, collapse them under a single theme.
 
 2. For each group you identify, create exactly one object with:
    • "title": a concise CamelCase identifier

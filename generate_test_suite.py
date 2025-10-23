@@ -718,9 +718,9 @@ def main():
         
         # Initialize Ollama client
         llm_client = OllamaClient(
-            base_url="http://localhost:11435/api/chat",
             code_model=args.code_model,
             non_code_model=args.non_code_model,
+            port=args.ollama_port,
             bug_hunting_model=args.non_code_model_bug
         )
         
@@ -1201,7 +1201,7 @@ def main():
                 test_class_name = test_file_path.stem
                 fully_qualified_class = f"{test_package}.{test_class_name}"
                 
-                individual_results, individual_failures, group_failures = run_test_class(
+                individual_results, individual_failures, group_failures, bug_revealing_runtime_errors_count, fixable_runtime_errors_count, total_runtime_errors_count, total_rfl_attempts_count, total_tests_fixed_count = run_test_class(
                     fully_qualified_class,
                     repo_path,
                     build_system,
@@ -1217,7 +1217,6 @@ def main():
                     args=args,
                     mut_body=method_info['method_code']  # Pass the method body for MUT delimiting
                 )
-                
                 
                 # Filter tests based on execution results
                 passing_tests = []
@@ -1278,21 +1277,53 @@ def main():
                 
                 # Add failure breakdown to the failed count line
                 if failure_types:
-                    # Initialize failure_counts with all error types set to 0
+                    # NEW: Use OR logic for summary failure counting
+                    # Get all test methods that were executed (union of individual and group)
+                    all_executed_methods = set(individual_failures.keys()) | set(group_failures.keys())
+                    
+                    # Apply OR logic to determine summary failure types and log immediately
+                    summary_failure_types = {}
+                    failures_dict = {}
                     failure_counts = {
                         "assertion_error": 0,
                         "runtime_error": 0,
                         "bug_revealing_runtime_error": 0,
-                        "fixable_runtime_error": 0,
                         "timeout": 0
                     }
-                    # Count the actual failures
-                    for failure_type in failure_types.values():
-                        if failure_type in failure_counts:
-                            failure_counts[failure_type] += 1
+                    
+                    for method_name in all_executed_methods:
+                        individual_failure = individual_failures.get(method_name)
+                        group_failure = group_failures.get(method_name)
+                        
+                        # OR logic: assertion error if EITHER individual OR group has assertion error
+                        if (individual_failure == "assertion_error" or 
+                            group_failure == "assertion_error"):
+                            summary_failure_types[method_name] = "assertion_error"
+                            failures_dict[method_name] = "Assertion Error"  # Log immediately
+                            failure_counts["assertion_error"] += 1          # Count immediately
+                            
+                        elif (individual_failure == "runtime_error" or 
+                              group_failure == "runtime_error"):
+                            summary_failure_types[method_name] = "runtime_error"
+                            failures_dict[method_name] = "Runtime Error"   # Log immediately
+                            failure_counts["runtime_error"] += 1           # Count immediately
+                            
+                        elif (individual_failure == "timeout" or 
+                              group_failure == "timeout"):
+                            summary_failure_types[method_name] = "timeout"
+                            failures_dict[method_name] = "Timeout"         # Log immediately
+                            failure_counts["timeout"] += 1                # Count immediately
+                            
+                        else:
+                            # Both are None = passed
+                            summary_failure_types[method_name] = None
+                            # Don't include passed tests in failures_dict
                     
                     failure_breakdown_parts = []
                     for failure_type, count in failure_counts.items():
+                        # Skip bug_revealing_runtime_error from general summary
+                        if failure_type == "bug_revealing_runtime_error":
+                            continue
                         readable_type = failure_type.replace("_", " ").title()
                         failure_breakdown_parts.append(f"{count} {readable_type}")
                     
@@ -1301,7 +1332,7 @@ def main():
                     
                     # Add detailed failure information with renamed section
                     print(f"\n   {info('Failure Breakdown:')}")
-                    for method_name, failure_type in failure_types.items():
+                    for method_name, failure_type in summary_failure_types.items():
                         if failure_type is not None:
                             if failure_type == "bug_revealing_runtime_error":
                                 readable_type = "Bug-Revealing Runtime Error"
@@ -1309,45 +1340,40 @@ def main():
                                 readable_type = failure_type.replace("_", " ").title()
                             print(f"      • {method_name}: {readable_type}")
                         else:
-                            print(f"      • {method_name}: Unknown Error")
+                            print(f"      • {method_name}: Passed")
                 else:
                     print(f"   {error('Failing tests:')} {total_tests_generated - len(passing_tests)}")
                 
                 # Log general test execution summary
                 if failure_types:
-                    # Convert failure_types to the format expected by JSON logger
-                    failures_dict = {}
-                    for method_name, failure_type in failure_types.items():
-                        if failure_type is not None:
-                            if failure_type == "assertion_error":
-                                failures_dict[method_name] = "Assertion Error"
-                            elif failure_type == "runtime_error" or failure_type == "bug_revealing_runtime_error":
-                                failures_dict[method_name] = "Runtime Error"
-                            elif failure_type == "timeout":
-                                failures_dict[method_name] = "Timeout"
-                            else:
-                                failures_dict[method_name] = "Unknown Error"
-                        else:
-                            failures_dict[method_name] = "Unknown Error"
+                    # failures_dict and failure_counts are already built using OR logic above
                     
                     # Calculate total runtime errors (fixable + bug-revealing)
                     total_runtime_errors = failure_counts["runtime_error"] + failure_counts["bug_revealing_runtime_error"]
                     
+                    # Calculate summary totals using OR logic
+                    summary_total_tests = len(all_executed_methods)
+                    summary_passed_tests = len([m for m, f in summary_failure_types.items() if f is None])
+                    
                     json_logger.update_test_execution_summary(
-                        total_tests=total_tests_generated,
-                        passed=len(passing_tests),
+                        total_tests=summary_total_tests,  # Use actual executed tests count
+                        passed=summary_passed_tests,  # Use OR logic passed count
                         assertion_errors=failure_counts["assertion_error"],
-                        runtime_errors=total_runtime_errors,  # Use total runtime errors (fixable + bug-revealing)
+                        runtime_errors=total_runtime_errors_count,  # Use initial total runtime errors counter
                         timeout_errors=failure_counts["timeout"],
                         failures=failures_dict,
-                        bug_revealing_runtime_errors=failure_counts["bug_revealing_runtime_error"],
-                        fixable_runtime_errors=failure_counts["fixable_runtime_error"]
+                        bug_revealing_runtime_errors=bug_revealing_runtime_errors_count,
+                        fixable_runtime_errors=fixable_runtime_errors_count
                     )
                 else:
-                    # No failures
+                    # No failures - still need to calculate using OR logic
+                    all_executed_methods = set(individual_failures.keys()) | set(group_failures.keys())
+                    summary_total_tests = len(all_executed_methods)
+                    summary_passed_tests = len(all_executed_methods)  # All passed
+                    
                     json_logger.update_test_execution_summary(
-                        total_tests=total_tests_generated,
-                        passed=len(passing_tests),
+                        total_tests=summary_total_tests,
+                        passed=summary_passed_tests,
                         assertion_errors=0,
                         runtime_errors=0,
                         timeout_errors=0,

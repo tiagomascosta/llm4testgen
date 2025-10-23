@@ -37,6 +37,13 @@ def count_assertions_in_test_file(file_path: Path) -> int:
         
         # TestNG specific
         r'\bassertNoThrows\b',
+        
+        # AssertJ assertions
+        r'\bassertThat\b',
+        r'\bassertThatThrownBy\b',
+        r'\bassertThatCode\b',
+        r'\bassertThatExceptionOfType\b',
+        r'\bassertThatNoException\b',
     ]
     
     total_assertions = 0

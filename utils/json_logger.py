@@ -81,16 +81,15 @@ class TestGenerationLogger:
                     "bug_revealing_runtime_errors": None,  # NEW: JCrasher classification
                     "fixable_runtime_errors": None,  # NEW: JCrasher classification
                     "timeout_errors": None,
-                    "failures": {},
-                    "tests": {}
+                    "total_rfl_attempts": None,  # NEW: Total RFL iterations
+                    "total_tests_fixed": None,  # NEW: Total tests fixed by RFL
+                    "failures": {}
                 },
                 "group": {
                     "total_tests": None,
                     "passed": None,
                     "assertion_errors": None,
                     "runtime_errors": None,
-                    "bug_revealing_runtime_errors": None,  # NEW: JCrasher classification
-                    "fixable_runtime_errors": None,  # NEW: JCrasher classification
                     "timeout_errors": None,
                     "failures": {}
                 },
@@ -203,11 +202,9 @@ class TestGenerationLogger:
     def update_test_execution_individual(self, total_tests: int, passed: int, 
                                        assertion_errors: int, runtime_errors: int, 
                                        timeout_errors: int = 0, failures: Dict[str, str] = None,
-                                       bug_revealing_runtime_errors: int = 0, fixable_runtime_errors: int = 0):
+                                       bug_revealing_runtime_errors: int = 0, fixable_runtime_errors: int = 0,
+                                       total_rfl_attempts: int = 0, total_tests_fixed: int = 0):
         """Update individual test execution results."""
-        # Preserve the tests section if it exists
-        existing_tests = self.data["test_execution"]["individual"].get("tests", {})
-        
         self.data["test_execution"]["individual"] = {
             "total_tests": total_tests,
             "passed": passed,
@@ -216,44 +213,21 @@ class TestGenerationLogger:
             "bug_revealing_runtime_errors": bug_revealing_runtime_errors,  # NEW: JCrasher
             "fixable_runtime_errors": fixable_runtime_errors,  # NEW: JCrasher
             "timeout_errors": timeout_errors,
-            "failures": failures or {},
-            "tests": existing_tests  # Preserve the tests section
+            "total_rfl_attempts": total_rfl_attempts,  # NEW: Total RFL iterations
+            "total_tests_fixed": total_tests_fixed,  # NEW: Total tests fixed by RFL
+            "failures": failures or {}
         }
     
-    def initialize_individual_test_entry(self, test_name: str):
-        """Initialize an entry for a test that didn't use runtime fix."""
-        self.data["test_execution"]["individual"]["tests"][test_name] = {
-            "runtime_fix_attempted": False,
-            "runtime_fix_successful": None,
-            "attempts_made": None,
-            "final_outcome": None
-        }
-    
-    def add_individual_test_runtime_fix_result(self, test_name: str, 
-                                             runtime_fix_attempted: bool,
-                                             runtime_fix_successful: bool = None,
-                                             attempts_made: int = None,
-                                             final_outcome: str = None):
-        """Add runtime fix result for a specific test."""
-        self.data["test_execution"]["individual"]["tests"][test_name] = {
-            "runtime_fix_attempted": runtime_fix_attempted,
-            "runtime_fix_successful": runtime_fix_successful,
-            "attempts_made": attempts_made,
-            "final_outcome": final_outcome
-        }
     
     def update_test_execution_group(self, total_tests: int, passed: int, 
                                   assertion_errors: int, runtime_errors: int, 
-                                  timeout_errors: int = 0, failures: Dict[str, str] = None,
-                                  bug_revealing_runtime_errors: int = 0, fixable_runtime_errors: int = 0):
+                                  timeout_errors: int = 0, failures: Dict[str, str] = None):
         """Update group test execution results."""
         self.data["test_execution"]["group"] = {
             "total_tests": total_tests,
             "passed": passed,
             "assertion_errors": assertion_errors,
             "runtime_errors": runtime_errors,
-            "bug_revealing_runtime_errors": bug_revealing_runtime_errors,  # NEW: JCrasher
-            "fixable_runtime_errors": fixable_runtime_errors,  # NEW: JCrasher
             "timeout_errors": timeout_errors,
             "failures": failures or {}
         }
@@ -296,11 +270,10 @@ class TestGenerationLogger:
         self.data["bug_assessment"]["bug_revealed"] = bug_revealed
         self.data["bug_assessment"]["bug_revealing_test_names"] = bug_revealing_test_names or []
         
-        # Count error types from bug results
+        # Count error types from bug results (fix commit run outcomes)
         error_types = {
             "assertion_error": 0,
             "runtime_error": 0,
-            "bug_revealing_runtime_error": 0,  # NEW: JCrasher classification
             "timeout": 0
         }
         

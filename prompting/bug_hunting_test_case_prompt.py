@@ -194,40 +194,46 @@ The following test method names have already been used in this test suite. Do NO
 {example_note}
 4. Bug Hunting Test Scenario (the scenario for which you will generate a bug hunting test method):
 
-{scenario.title}: {scenario.description}{method_names_section}
+**Title**: {scenario.title}
+**Description**: {scenario.description}
+
+{method_names_section}
+
+---
 
 === INSTRUCTIONS ===
 
-1. You are a **senior Java developer**. Your task is to write exactly one JUnit {junit_version} test method that implements the bug-hunting scenario and targets potential bugs and edge cases in the single Method Under Test — {mut_sig} — not any other methods in the superclass.
+1. You are a **senior Java developer and security-minded tester**. Your task is to write exactly one JUnit {junit_version} test method that implements the bug-hunting scenario above and targets potential bugs and edge cases in the single Method Under Test — **{mut_sig}** — not any other methods in the superclass.
 
-2. **Focus on bug hunting for {mut_sig}**. Generate a test that could reveal bugs, edge cases, or failure modes. Do not add tests for any other methods or behaviors. Your only test method will be inserted at the "// INSERT BUG HUNTING TEST METHOD HERE" placeholder in the scaffold. Do **not** add or remove imports, package declarations, or class headers.
+2. **Focus on bug hunting for {mut_sig}**. Generate a test that could reveal bugs, edge cases, or failure modes. Do not add tests for any other methods or behaviors. Your only test method will be inserted at the "// INSERT TEST METHOD HERE" placeholder in the scaffold. Do **not** add or remove imports, package declarations, or class headers.
 
 3. The test method must be:
-   - "public void" with a descriptive name that indicates it's a bug hunting test.
-   - Annotated with "@Test".
-   - Its name must be unique:
-     - Check the "Already Used Method Names" section above and avoid using any of those names.
-     - Derive a meaningful name that reflects the bug hunting scenario title and description.
-     - Consider using prefixes like "testBug", "testEdgeCase", or "testFailure" to indicate bug hunting nature.
+   - `public void` with a descriptive name that indicates it's a bug hunting test
+   - Annotated with `@Test`
+   - Its name must be **unique**:
+     * Check the "Already Used Method Names" section above and avoid using any of those names
+     * Derive a meaningful name that reflects the bug hunting scenario title and description
+     * Consider using prefixes like `testBug`, `testEdgeCase`, or `testFailure` to indicate bug hunting nature
 
-4. **Structured‐Output Requirement**:
+4. **Structured Output Requirement**:
    - Return exactly one JSON object matching this schema:
-    {{ "testMethod": "<your JUnit {junit_version} @Test method here>" }}
+     `{{ "testMethod": "<your JUnit {junit_version} @Test method here>" }}`
    - The value of "testMethod" should contain the entire JUnit {junit_version} test method (including @Test, signature, body, and closing brace)
-   - Do **not** output any other text or JSON fields.
+   - Do **not** output any other text or JSON fields
 
-5. **Bug Hunting Focus**:
-   - Design the test to potentially reveal bugs, edge cases, or failure modes
+5. **Bug Hunting Focus - Critical Requirements**:
+   - Design the test to **fail if a bug exists**, not to pass with normal behavior
    - Focus on producing code that compiles, runs, and can reveal a bug if present
-   - Use inputs that could trigger exceptions, boundary violations, or unexpected behavior
-   - Consider null inputs, extreme values, invalid states, or unusual conditions
-   - The test should be designed to fail if the method has bugs, not to pass with normal behavior
+   - The test should make **specific, correct assertions** based on expected behavior
+   - If the scenario describes "expected result is X", assert exactly that - don't guess
 
 6. **Isolation Requirement**:
-   - Each test method must be fully self-contained and must not share state (variables, mocks, or objects) with other tests.
-   - Do not use `static` fields, class-level variables, or reuse mocks across test methods.
-   - The test must not alter any global or external state (e.g., files, environment variables, or static singletons).
-   - If unavoidable, reset or clean up within the test method body.
+   - Each test method must be fully self-contained and must not share state (variables, mocks, or objects) with other tests
+   - Do not use `static` fields, class-level variables, or reuse mocks across test methods
+   - The test must not alter any global or external state (e.g., files, environment variables, or static singletons)
+   - If unavoidable, reset or clean up within the test method body
+
+---
 
 === CODE GENERATION CONSTRAINTS ===
 
@@ -237,22 +243,69 @@ You must only reference identifiers (e.g., constants, method names, fields, clas
 - The "Dependencies" section
 - The "Scaffold" code
 
-Do not invent or guess constants, method names, or fields that are not present in these sections.
+**Do not invent or guess** constants, method names, or fields that are not present in these sections.
 
 Only use what is verifiably present in the provided context. If a constant or method does not exist in the input, omit its usage in the test.
 
 Incorrect references will cause compilation to fail and the generated test to be discarded.
 
+---
+
+=== DOMAIN-SPECIFIC TEST PATTERNS ===
+
+Based on the scenario description, apply the appropriate pattern:
+
+### **A. Tree-Structured Data Tests**
+
+If the method operates on hierarchical or node-based data structures:
+
+1. **Build the minimal structure** (e.g., root node with children) described in the scenario.
+2. **Position nodes or values** according to the scenario's description.
+3. **Verify expected behavior** (returned node, value, or thrown exception) without assuming any particular algorithm (e.g., LCA) unless explicitly evident in the code.
+4. **For numerical or structural stress cases**, include extreme values (e.g., Integer.MIN_VALUE, Integer.MAX_VALUE) or unbalanced shapes if relevant.
+
+### **B. Array/Collection Processing Tests**
+
+Follow the same logic for constructing collections or arrays: ensure inputs directly reflect the scenario description, including edge or malformed cases.
+
+### **C. Numeric and Arithmetic Edge Tests**
+
+When scenarios mention boundary conditions or arithmetic risks:
+1. Use extreme or boundary values.
+2. Assert correct behavior (proper result or exception) when overflow, underflow, or division by zero might occur.
+
+### **D. Input Validation and Null Handling**
+
+Include nulls, empties, or out-of-range inputs as described by the scenario to validate robustness and defensive programming.
+
+### **E. State and Resource Integrity Tests**
+
+If applicable, simulate invalid sequences, double calls, or missing initialization consistent with the scenario.
+
+---
+
 === BUG HUNTING STRATEGIES ===
 
-- **Null/Invalid Inputs**: Test with null, empty, or invalid inputs that could cause NullPointerException or IllegalArgumentException
-- **Boundary Values**: Test with values at the edge of valid ranges (Integer.MAX_VALUE, Integer.MIN_VALUE, empty collections)
-- **Type Violations**: Test with inputs that could cause ClassCastException or type mismatches
-- **Resource Issues**: Test scenarios that could cause resource leaks or OutOfMemoryError
-- **State Violations**: Test with invalid object states or sequences of operations
-- **Edge Cases**: Test with unusual but valid inputs that could expose logic errors
+Use these as guidance to explore potential failure modes:
+- Input validation (nulls, empties, out-of-range)
+- Arithmetic errors (overflow, underflow, precision)
+- Boundary violations (off-by-one, empty ranges)
+- State mismanagement (invalid order, double-free)
+- Data structure inconsistencies (unbalanced, cyclic, missing nodes)
+- Domain logic errors (invalid assumptions, impossible states)
+- Resource exhaustion (deep recursion, large input)
 
-Your goal is to create a test that could reveal real bugs in the method implementation.
+=== CRITICAL REMINDERS ===
+
+- Read the scenario description carefully; it defines what to test.
+- Build complete structures or inputs when needed, not partial stubs.
+- Assert exact expected outcomes, not generic correctness.
+- Use extreme and edge values when appropriate.
+- Think adversarially: *What input could break this method?*
+
+Your goal is to create a test that **reveals the bug described in the scenario** if it exists in the code.
+
+Generate the test method now.
 """
 
     return system_message, prompt

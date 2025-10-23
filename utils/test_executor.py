@@ -52,7 +52,7 @@ def save_assertion_failure_file(
         # Save the file
         file_path.write_text(updated_content, encoding='utf-8')
         
-        print(f"   💾 Saved assertion failure: {filename}")
+        print(f"   Saved assertion failure: {filename}")
         
     except Exception as e:
         print(f"   {warning('Failed to save assertion failure file:')} {e}")
@@ -100,7 +100,7 @@ def save_bug_revealing_runtime_error_file(
         # Save the file
         file_path.write_text(updated_content, encoding='utf-8')
         
-        print(f"   💾 Saved bug-revealing runtime error: {filename}")
+        print(f"   Saved bug-revealing runtime error: {filename}")
         
     except Exception as e:
         print(f"   {warning('Failed to save bug-revealing runtime error file:')} {e}")
@@ -300,6 +300,16 @@ def run_test_class(
         individual_failures = {}  # Track failure categories for individual tests
         overall_success = True
         
+        # Initialize JCrasher classification counters
+        bug_revealing_runtime_errors_count = 0
+        fixable_runtime_errors_count = 0
+        total_runtime_errors_count = 0  # Initial total runtime errors counter
+        
+        # Initialize RFL counters
+        total_rfl_attempts_count = 0  # Total RFL iterations
+        total_tests_fixed_count = 0   # Total tests fixed by RFL
+        fixed_tests_set = set()       # Track which tests were fixed (avoid duplicates)
+        
         # Initialize recent successful tests for runtime fix loop
         recent_successful_tests = []
         
@@ -309,7 +319,6 @@ def run_test_class(
                 method_name_match = re.search(r'public\s+void\s+(\w+)\s*\(', test_method)
                 if method_name_match:
                     method_name = method_name_match.group(1)
-                    json_logger.initialize_individual_test_entry(method_name)
         
         # STEP 1: Run each test method individually (isolated)
         print(f"{Colors.CYAN}[INFO]{Colors.RESET} STEP 1: Running tests individually (isolated)\n")
@@ -403,6 +412,10 @@ def run_test_class(
                         failure_type = failure_category.replace('_', ' ').title()
                         print(f"   {error('Failed')} ({failure_type})")
                         
+                        # Increment total runtime errors counter if it's a runtime error
+                        if failure_category == "runtime_error":
+                            total_runtime_errors_count += 1
+                        
                         # Add tests with assertion errors to successful tests list (they are runtime-successful)
                         if failure_category == "assertion_error":
                             # Check if this test method is already in the list to avoid duplicates
@@ -431,6 +444,7 @@ def run_test_class(
                                     # Update failure category to distinguish from regular runtime errors
                                     # This replaces the original "runtime_error" classification
                                     individual_failures[method_name] = "bug_revealing_runtime_error"
+                                    bug_revealing_runtime_errors_count += 1
                                     
                                     # Save bug-revealing runtime error file to potential_bugs directory (same as assertion errors)
                                     if output_dir:
@@ -461,18 +475,15 @@ def run_test_class(
                                     
                                     # Log bug-revealing runtime error to JSON
                                     if json_logger:
-                                        json_logger.add_individual_test_runtime_fix_result(
-                                            test_name=method_name,
-                                            runtime_fix_attempted=False,  # Not attempted due to JCrasher
-                                            runtime_fix_successful=None,
-                                            attempts_made=0,
-                                            final_outcome="bug_revealing_runtime_error"
-                                        )
+                                        pass  # RFL logging removed
                                     continue  # Skip runtime fix loop
                                 
                                 # Only proceed with runtime fix loop for actual runtime errors that are fixable
                                 if failure_category != "runtime_error":
                                     continue
+                                
+                                # Increment fixable counter (JCrasher classified as fixable)
+                                fixable_runtime_errors_count += 1
                                 
                                 # Import the runtime-fix loop
                                 from utils.runtime_fix_loop import runtime_fix_loop, clean_runtime_error_comment
@@ -505,8 +516,16 @@ def run_test_class(
                                     mut_body=mut_body
                                 )
                                 
+                                # Increment total RFL attempts counter
+                                total_rfl_attempts_count += attempts_made
+                                
                                 if fix_result in ["passed", "assertion_error"]:
                                     print(f"   {success('Runtime error fixed for')} {method_name} after {attempts_made} attempts")
+                                    
+                                    # Count this test as fixed (only once per test)
+                                    if method_name not in fixed_tests_set:
+                                        fixed_tests_set.add(method_name)
+                                        total_tests_fixed_count += 1
                                     
                                     # Update individual results based on runtime fix loop result
                                     if fix_result == "passed":
@@ -537,13 +556,7 @@ def run_test_class(
                                     
                                     # Log successful runtime fix
                                     if json_logger:
-                                        json_logger.add_individual_test_runtime_fix_result(
-                                            test_name=method_name,
-                                            runtime_fix_attempted=True,
-                                            runtime_fix_successful=True,
-                                            attempts_made=attempts_made,
-                                            final_outcome=fix_result
-                                        )
+                                        pass  # RFL logging removed
                                 elif fix_result == "timeout":
                                     print(f"   ⏰ Runtime fix failed with timeout after {attempts_made} attempts")
                                     individual_results[method_name] = False
@@ -552,13 +565,7 @@ def run_test_class(
                                     
                                     # Log timeout runtime fix
                                     if json_logger:
-                                        json_logger.add_individual_test_runtime_fix_result(
-                                            test_name=method_name,
-                                            runtime_fix_attempted=True,
-                                            runtime_fix_successful=False,
-                                            attempts_made=attempts_made,
-                                            final_outcome="timeout"
-                                        )
+                                        pass  # RFL logging removed
                                 else:  # runtime_error
                                     print(f"   {error('Runtime fix failed after')} {attempts_made} attempts")
                                     individual_results[method_name] = False
@@ -567,32 +574,17 @@ def run_test_class(
                                     
                                     # Log failed runtime fix
                                     if json_logger:
-                                        json_logger.add_individual_test_runtime_fix_result(
-                                            test_name=method_name,
-                                            runtime_fix_attempted=True,
-                                            runtime_fix_successful=False,
-                                            attempts_made=attempts_made,
-                                            final_outcome="runtime_error"
-                                        )
+                                        pass  # RFL logging removed
                             except Exception as fix_error:
                                 print(f"   {warning('Runtime fix loop failed with error:')} {str(fix_error)}")
                                 # Continue with the test as failed, don't re-raise the exception
                                 # Log runtime fix attempt that failed due to exception
                                 if json_logger:
-                                    json_logger.add_individual_test_runtime_fix_result(
-                                        test_name=method_name,
-                                        runtime_fix_attempted=True,
-                                        runtime_fix_successful=False,
-                                        attempts_made=0,
-                                        final_outcome=failure_category
-                                    )
+                                    pass  # RFL logging removed
                         else:
                             # Log test that failed but didn't trigger runtime fix
                             if json_logger:
-                                json_logger.add_individual_test_runtime_fix_result(
-                                    test_name=method_name,
-                                    runtime_fix_attempted=False
-                                )
+                                pass  # RFL logging removed
                     else:
                         print(f"   {success('Passed')}")
                         # Add successful test to recent successful tests for runtime fix examples
@@ -603,10 +595,7 @@ def run_test_class(
                         
                         # Log test that didn't use runtime fix
                         if json_logger:
-                            json_logger.add_individual_test_runtime_fix_result(
-                                test_name=method_name,
-                                runtime_fix_attempted=False
-                            )
+                            pass  # RFL logging removed
                     
                     # Save assertion failure files (just before cleanup)
                     if output_dir and not test_success and individual_failures.get(method_name) == "assertion_error":
@@ -633,10 +622,7 @@ def run_test_class(
                     
                     # Log timeout test that didn't use runtime fix
                     if json_logger:
-                        json_logger.add_individual_test_runtime_fix_result(
-                            test_name=method_name,
-                            runtime_fix_attempted=False
-                        )
+                        pass  # RFL logging removed
                 except Exception as e:
                     print(f"   💥 Error")
                     individual_results[method_name] = False
@@ -648,10 +634,7 @@ def run_test_class(
                     
                     # Log exception test that didn't use runtime fix
                     if json_logger:
-                        json_logger.add_individual_test_runtime_fix_result(
-                            test_name=method_name,
-                            runtime_fix_attempted=False
-                        )
+                        pass  # RFL logging removed
                 
                 finally:
                     # Clean up the isolated test file
@@ -666,7 +649,7 @@ def run_test_class(
             return {}, {}, {}
         
         # Print detailed individual test summary
-        individual_summary = create_detailed_summary(individual_failures, test_methods, "Individual", json_logger)
+        individual_summary = create_detailed_summary(individual_failures, test_methods, "Individual", json_logger, bug_revealing_runtime_errors_count, fixable_runtime_errors_count, total_runtime_errors_count, total_rfl_attempts_count, total_tests_fixed_count)
         print(individual_summary)
         
         # Filter out timeout tests from group runs
@@ -728,7 +711,6 @@ def run_test_class(
             print(f"   {warning('Recompilation failed:')} {e}")
         
         # STEP 2: Run all tests together 5 times to filter flaky tests
- 
         print(f"\n\n{Colors.CYAN}[INFO]{Colors.RESET} STEP 2: Running tests in group (5 iterations)\n")
         
         if build_system == "gradle":
@@ -748,8 +730,10 @@ def run_test_class(
         group_test_results = []  # Store results from each iteration
         group_failures = {}  # Track failure categories for group tests
         
+        
         for iteration in range(5):
             try:
+                print(f"{info(f'Group execution iteration {iteration + 1}/5')}")
                 # Run all tests together
                 result = subprocess.run(
                     cmd,
@@ -1101,14 +1085,14 @@ def run_test_class(
                 group_test_results.append(iteration_results)
                 
             except subprocess.TimeoutExpired:
-                print(f"Iteration {iteration + 1}: ⏰ TIMEOUT")
+                print(f"Iteration {iteration + 1}: TIMEOUT")
                 # Mark all tests as failed for this iteration
                 iteration_results = {method_name: False for method_name in test_methods_for_group}
                 for method_name in test_methods_for_group:
                     group_failures[method_name] = "timeout"
                 group_test_results.append(iteration_results)
             except Exception as e:
-                print(f"Iteration {iteration + 1}: 💥 ERROR - {e}")
+                print(f"Iteration {iteration + 1}: ERROR - {e}")
                 # Mark all tests as failed for this iteration
                 iteration_results = {method_name: False for method_name in test_methods_for_group}
                 for method_name in test_methods_for_group:
@@ -1116,15 +1100,15 @@ def run_test_class(
                 group_test_results.append(iteration_results)
         
         # Create detailed group summary with build system totals
-        group_summary = create_detailed_summary(group_failures, test_methods_for_group, "Group", json_logger)
+        group_summary = create_detailed_summary(group_failures, test_methods_for_group, "Group", json_logger, bug_revealing_runtime_errors_count, fixable_runtime_errors_count, total_runtime_errors_count, total_rfl_attempts_count, total_tests_fixed_count)
         print(group_summary)
         
-        return individual_results, individual_failures, group_failures
+        return individual_results, individual_failures, group_failures, bug_revealing_runtime_errors_count, fixable_runtime_errors_count, total_runtime_errors_count, total_rfl_attempts_count, total_tests_fixed_count
     
     except subprocess.TimeoutExpired:
-        return {}, {}, {}
+        return {}, {}, {}, 0, 0, 0, 0, 0
     except Exception as e:
-        return {}, {}, {}
+        return {}, {}, {}, 0, 0, 0, 0, 0
 
 def run_all_tests(
     repo_path: Path, 
@@ -1740,7 +1724,7 @@ def is_thrown_by_method_under_test(
     
     return False
 
-def create_detailed_summary(failure_details: Dict[str, str], test_methods: List[str], summary_type: str, json_logger=None) -> str:
+def create_detailed_summary(failure_details: Dict[str, str], test_methods: List[str], summary_type: str, json_logger=None, bug_revealing_runtime_errors_count=0, fixable_runtime_errors_count=0, total_runtime_errors_count=0, total_rfl_attempts_count=0, total_tests_fixed_count=0) -> str:
     """
     Create a detailed summary of test execution results.
     
@@ -1774,12 +1758,11 @@ def create_detailed_summary(failure_details: Dict[str, str], test_methods: List[
     
     # Calculate total runtime errors (fixable + bug-revealing)
     total_runtime_errors = failure_counts["runtime_error"] + failure_counts["bug_revealing_runtime_error"]
-    fixable_runtime_errors = failure_counts["runtime_error"]  # These are the ones that remained fixable after JCrasher classification
     
     # Only show JCrasher summary for individual runs (not group runs)
     if summary_type == "Individual":
-        print(f"   {summary('JCrasher Summary:')} {total_runtime_errors} total runtime errors")
-        print(f"   {summary('JCrasher Summary:')} {failure_counts['bug_revealing_runtime_error']} bug-revealing, {fixable_runtime_errors} fixable")
+        print(f"   {summary('JCrasher Summary:')} {total_runtime_errors_count} total runtime errors")
+        print(f"   {summary('JCrasher Summary:')} {bug_revealing_runtime_errors_count} bug-revealing, {fixable_runtime_errors_count} fixable")
     
     # Log to JSON if logger is provided
     if json_logger:
@@ -1794,7 +1777,7 @@ def create_detailed_summary(failure_details: Dict[str, str], test_methods: List[
                 elif failure_type == "runtime_error":
                     failures_dict[method] = "Runtime Error"
                 elif failure_type == "bug_revealing_runtime_error":
-                    failures_dict[method] = "Bug-Revealing Runtime Error"  # NEW: JCrasher
+                    failures_dict[method] = "Runtime Error"  # Generic runtime error
                 elif failure_type == "timeout":
                     failures_dict[method] = "Timeout"
         
@@ -1803,22 +1786,22 @@ def create_detailed_summary(failure_details: Dict[str, str], test_methods: List[
                 total_tests=total_tests,
                 passed=passed_tests,
                 assertion_errors=failure_counts["assertion_error"],
-                runtime_errors=total_runtime_errors,  # Use total runtime errors (fixable + bug-revealing)
+                runtime_errors=total_runtime_errors_count,  # Use initial total runtime errors counter
                 timeout_errors=failure_counts["timeout"],
                 failures=failures_dict,
-                bug_revealing_runtime_errors=failure_counts["bug_revealing_runtime_error"],
-                fixable_runtime_errors=fixable_runtime_errors
+                bug_revealing_runtime_errors=bug_revealing_runtime_errors_count,
+                fixable_runtime_errors=fixable_runtime_errors_count,
+                total_rfl_attempts=total_rfl_attempts_count,
+                total_tests_fixed=total_tests_fixed_count
             )
         elif summary_type == "Group":
             json_logger.update_test_execution_group(
                 total_tests=total_tests,
                 passed=passed_tests,
                 assertion_errors=failure_counts["assertion_error"],
-                runtime_errors=total_runtime_errors,  # Use total runtime errors (fixable + bug-revealing)
+                runtime_errors=total_runtime_errors,  # Use final runtime errors count (calculated from group_failures)
                 timeout_errors=failure_counts["timeout"],
-                failures=failures_dict,
-                bug_revealing_runtime_errors=failure_counts["bug_revealing_runtime_error"],
-                fixable_runtime_errors=fixable_runtime_errors
+                failures=failures_dict
             )
     
     # Build summary

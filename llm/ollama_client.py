@@ -12,29 +12,34 @@ class OllamaClient:
     
     def __init__(
         self,
-        base_url: str,
         code_model: str,
         non_code_model: str,
+        base_url: str = None,
+        port: int = 11435,
         bug_hunting_model: str = None,
         max_retries: int = 3,
         retry_delay: float = 5.0,
-        timeout: int = 90,
+        timeout: int = 120,
         json_logger=None
     ):
         """
         Initialize the Ollama client.
         
         Args:
-            base_url: The base URL for the Ollama API
             code_model: The model to use for code-related tasks
             non_code_model: The model to use for non-code tasks (e.g. scenarios)
+            base_url: The base URL for the Ollama API (if None, will use localhost with port)
+            port: The port number for the Ollama API (default: 11435)
             bug_hunting_model: The model to use for bug hunting scenario generation
             max_retries: Maximum number of retries for failed requests
             retry_delay: Delay between retries in seconds
             timeout: Request timeout in seconds
             json_logger: Optional TestGenerationLogger instance for tracking metrics
         """
-        self.base_url = base_url
+        if base_url is None:
+            self.base_url = f"http://localhost:{port}/api/chat"
+        else:
+            self.base_url = base_url
         self.code_model = code_model
         self.non_code_model = non_code_model
         self.bug_hunting_model = bug_hunting_model or non_code_model  # Default to non_code_model if not provided
@@ -53,9 +58,9 @@ class OllamaClient:
             model: Model name to check
             
         Returns:
-            True if the model is a reasoning model (currently deepseek-r1 variants)
+            True if the model is a reasoning model (currently deepseek-r1 variants and qwen3:30b)
         """
-        return model.startswith("deepseek-r1")
+        return model.startswith("deepseek-r1") or model == "qwen3:30b"
 
     def _make_request(
         self,
@@ -102,7 +107,7 @@ class OllamaClient:
             "messages": messages,
             "stream": False,
             "options": {
-                "num_ctx": 32000,
+                "num_ctx": 150000,
             }
         }
         

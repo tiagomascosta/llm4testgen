@@ -78,11 +78,27 @@ def test_single_bug_assessment(
     # Extract class name from the file content
     import re
     class_match = re.search(r'public\s+class\s+(\w+)', test_content)
+    if not class_match:
+        print(f"   {warning('Could not extract class name from test file')}")
+        return "invalid_filename"
     class_name = class_match.group(1)
     
     # Extract test method name from the file content
-    method_match = re.search(r'@Test\s+public\s+void\s+(\w+)\s*\(', test_content)
-    method_name = method_match.group(1)
+    # Handle multiple @Test annotation formats:
+    # 1. @Test (JUnit 5)
+    # 2. @Test(expected = Exception.class) (JUnit 4)
+    # 3. Multi-line @Test annotations
+    method_match = re.search(
+        r'@Test\s*\n\s*public\s+void\s+(\w+)\s*\(|'  # Multi-line @Test
+        r'@Test\s+public\s+void\s+(\w+)\s*\(|'       # Single-line @Test
+        r'@Test\([^)]*\)\s*\n\s*public\s+void\s+(\w+)\s*\(|'  # Multi-line @Test(expected = ...)
+        r'@Test\([^)]*\)\s+public\s+void\s+(\w+)\s*\('       # Single-line @Test(expected = ...)
+    , test_content, re.MULTILINE)
+    if method_match:
+        method_name = method_match.group(1) or method_match.group(2) or method_match.group(3) or method_match.group(4)
+    else:
+        print(f"   {warning('Could not extract method name from test file')}")
+        return "invalid_filename"
     
     # Use the global test file path from config
     target_path = Path(test_config.get_test_file_path())
@@ -251,7 +267,6 @@ def run_final_test_suite_on_fix_commit(
                            "-Dspotless.check.skip=true", "-Dcheckstyle.skip=true", "-Dpmd.skip=true", "-Dfindbugs.skip=true", "-Dspring-javaformat.skip=true", "-Dsortpom.skip=true", "-Denforcer.skip=true"]
             else:
                 # Project doesn't use Surefire, use vanilla approach
-                print("Project doesn't use Surefire plugin, using vanilla approach")
                 
                 # For projects without Surefire, just run the vanilla setup
                 if class_name:
@@ -449,7 +464,6 @@ def run_final_test_suite_on_fix_commit_enhanced(
                            "-Dspotless.check.skip=true", "-Dcheckstyle.skip=true", "-Dpmd.skip=true", "-Dfindbugs.skip=true", "-Dspring-javaformat.skip=true", "-Dsortpom.skip=true", "-Denforcer.skip=true"]
             else:
                 # Project doesn't use Surefire, use vanilla approach
-                print("Project doesn't use Surefire plugin, using vanilla approach")
                 
                 # For projects without Surefire, just run the vanilla setup
                 if class_name:
