@@ -54,6 +54,36 @@ from utils.test_executor import run_test_class, run_all_tests
 from utils.test_result_parser import extract_test_method_names
 from utils.compile_fix_loop import count_errors
 
+def ensure_test_annotation_in_method(test_method: str) -> str:
+    """
+    Ensure that a test method has @Test annotation.
+    
+    Args:
+        test_method: The test method content
+        
+    Returns:
+        Test method with @Test annotation added if missing, or original if no method found
+    """
+    import re
+    
+    # Check if @Test annotation is already present
+    if '@Test' in test_method:
+        return test_method
+    
+    # Look for method declaration (more general pattern)
+    lines = test_method.split('\n')
+    for i, line in enumerate(lines):
+        # More general regex: handles visibility modifiers, static, generics, etc.
+        if re.search(r'(?:public|protected|private)?\s*(?:static)?\s*void\s+\w+\s*(?:<[^>]*>)?\s*\(', line):
+            # Found the method signature, add @Test annotation before it
+            indent = len(line) - len(line.lstrip())
+            test_annotation = ' ' * indent + '@Test'
+            lines.insert(i, test_annotation)
+            break
+    
+    # Return the modified content (or original if no method found)
+    return '\n'.join(lines)
+
 # Global variable to hold the base message of the current sub-step for overwriting
 _current_sub_step_line_base_message = ""
 
@@ -895,6 +925,9 @@ def main():
             )
             test_method = TestMethodOnly.model_validate_json(test_method)
             
+            # Ensure @Test annotation is present in the generated test method
+            test_method.testMethod = ensure_test_annotation_in_method(test_method.testMethod)
+            
             print_success("Generated test method")
             
             # Try to compile the test method
@@ -1071,6 +1104,9 @@ def main():
                 is_code_task=True
             )
             bug_hunting_test_method = BugHuntingTestMethodOnly.model_validate_json(bug_hunting_test_method)
+            
+            # Ensure @Test annotation is present in the generated bug hunting test method
+            bug_hunting_test_method.testMethod = ensure_test_annotation_in_method(bug_hunting_test_method.testMethod)
             
             print_success("Generated bug hunting test method")
             

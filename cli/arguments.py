@@ -114,19 +114,19 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         '--code-model',
         type=str,
-        default='qwen3-coder:30b',
+        default='qwen3:30b',
         help='Model to use for code-related tasks (e.g. test generation). Reasoning models like deepseek-r1 will automatically enable thinking capabilities.'
     )
     parser.add_argument(
         '--non-code-model',
         type=str,
-        default='qwen3-coder:30b',
+        default='qwen3:30b',
         help='Model to use for non-code tasks (e.g. scenario generation). Reasoning models like deepseek-r1 will automatically enable thinking capabilities.'
     )
     parser.add_argument(
         '--non-code-model-bug',
         type=str,
-        default='qwen3-coder:30b',
+        default='qwen3:30b',
         help='Model to use for bug hunting scenario generation. Reasoning models like deepseek-r1 will automatically enable thinking capabilities.'
     )
     parser.add_argument(
@@ -146,13 +146,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         '--max-compile-fix-examples',
         type=int,
-        default=0,
+        default=3,
         help='Maximum number of examples to include in compile-fix prompts'
     )
     parser.add_argument(
         '--max-scaffold-examples',
         type=int,
-        default=0,
+        default=3,
         help='Maximum number of examples to include in test generation scaffold'
     )
     
@@ -166,7 +166,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         '--max-runtime-fix-examples',
         type=int,
-        default=0,
+        default=3,
         help='Maximum number of examples to include in runtime-fix prompts'
     )
     

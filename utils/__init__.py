@@ -7,7 +7,7 @@ Utilities module for common functionality.
 from .logging import setup_logging
 from .compile_java_file import compile_java_file
 from .compiler import assemble_and_compile_test
-from .compile_fix_loop import compile_fix_loop
+# from .compile_fix_loop import compile_fix_loop  # Removed to break circular import
 from .test_executor import run_test_class, run_all_tests
 from .test_result_parser import extract_test_method_names
 from .build_system_detector import detect_build_system
@@ -17,7 +17,7 @@ __all__ = [
     'setup_logging',
     'compile_java_file', 
     'assemble_and_compile_test',
-    'compile_fix_loop',
+    # 'compile_fix_loop',  # Removed to break circular import
     'run_test_class',
     'run_all_tests',
     'extract_test_method_names',

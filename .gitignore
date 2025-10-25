@@ -11,10 +11,16 @@ __pycache__/
 logs/
 output/
 output2/
+output3/
+output4/
+output5/
 
 # Optional: inputs (if they’re local/test files)
 input/
 input2/
+input3/
+input4/
+input5/
 system_architecture/
 image/
 experiments/

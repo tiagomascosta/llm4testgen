@@ -19,7 +19,7 @@ class OllamaClient:
         bug_hunting_model: str = None,
         max_retries: int = 3,
         retry_delay: float = 5.0,
-        timeout: int = 120,
+        timeout: int = 300,
         json_logger=None
     ):
         """

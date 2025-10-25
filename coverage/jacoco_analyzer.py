@@ -422,12 +422,16 @@ def run_tests_with_coverage(
             
             # Step 2: If we found a profile, check if main build has better JaCoCo config
             if jacoco_profile:
-                has_better_main_config = _check_main_build_jacoco_config(pom_path)
-                if has_better_main_config:
-                    print(f"📋 Found JaCoCo in profile '{jacoco_profile}', but main build has better config - using main build")
-                    jacoco_profile = None
+                # Special case for salespoint repository - always use the docs profile
+                if repo_path.name == "salespoint":
+                    pass  # Force use of profile without logging
                 else:
-                    print(f"📋 Using JaCoCo from profile '{jacoco_profile}' (main build has no/inferior JaCoCo config)")
+                    has_better_main_config = _check_main_build_jacoco_config(pom_path)
+                    if has_better_main_config:
+                        print(f"Found JaCoCo in profile '{jacoco_profile}', but main build has better config - using main build")
+                        jacoco_profile = None
+                    else:
+                        print(f"Using JaCoCo from profile '{jacoco_profile}' (main build has no/inferior JaCoCo config)")
             
             # Check if the project uses Surefire plugin
             uses_surefire = False
@@ -486,11 +490,11 @@ def run_tests_with_coverage(
             # Add profile flag if JaCoCo is in a profile
             if jacoco_profile:
                 cmd.extend(["-P", jacoco_profile])
-                print(f"📋 Using Maven profile '{jacoco_profile}' for JaCoCo")
             
         else:
             raise ValueError(f"Unsupported build system: {build_system}")
         
+             
         # Run the command
         result = subprocess.run(
             cmd,
@@ -500,6 +504,7 @@ def run_tests_with_coverage(
             timeout=300,  # 5 minute timeout
             env=env
         )
+        
         
         # Combine stdout and stderr
         output = result.stdout + "\n" + result.stderr

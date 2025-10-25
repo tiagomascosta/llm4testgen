@@ -97,8 +97,16 @@ def test_single_bug_assessment(
     if method_match:
         method_name = method_match.group(1) or method_match.group(2) or method_match.group(3) or method_match.group(4)
     else:
-        print(f"   {warning('Could not extract method name from test file')}")
-        return "invalid_filename"
+        # Fallback: extract method name from filename since it matches the method name
+        # Format: {method_name}_{class}Test_{number}Test.java
+        filename_without_ext = test_file.stem  # Remove .java extension
+        # Remove the class suffix pattern: __{class}Test_{number}Test
+        method_name_match = re.search(r'^(.+?)_.+Test_\d+Test$', filename_without_ext)
+        if method_name_match:
+            method_name = method_name_match.group(1)
+        else:
+            print(f"   {warning('Could not extract method name from test file')}")
+            return "invalid_filename"
     
     # Use the global test file path from config
     target_path = Path(test_config.get_test_file_path())
