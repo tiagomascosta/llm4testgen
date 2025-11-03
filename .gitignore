@@ -23,7 +23,22 @@ input4/
 input5/
 system_architecture/
 image/
-experiments/
+# Exclude specific subfolders and file types from experiments/src
+experiments/src/output/
+experiments/src/results/
+experiments/src/**/*.json
+experiments/src/**/*.txt
+# Exclude v1 folder from experiments/analysis
+experiments/analysis/v1/
+# Exclude specific subfolders and files from experiments/dataset
+experiments/dataset/data/
+experiments/dataset/dataset.csv
+experiments/dataset/**/*.log
+# Exclude everything in experiments/dataset/src/ except specific files
+experiments/dataset/src/**
+!experiments/dataset/src/dataset_builder_v2.py
+!experiments/dataset/src/sample.csv
+!experiments/dataset/src/subsample.csv
 source_analysis/__pycache__/
 utils/__pycache__/
 init/__pycache__/
