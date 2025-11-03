@@ -574,18 +574,28 @@ def main():
             
             # Only try SDKMAN if we haven't found the version we need
             if not java_path:
-                print_warning(f"Required Java version {required_version} not found. Attempting to install via SDKMAN...")
-                if _ensure_sdkman_installed():
-                    print("   → SDKMAN is installed, attempting to install Java...")
-                    try:
-                        java_path = _install_jdk_with_sdkman(required_version)
-                        if java_path:
-                            java_source = "sdkman"
-                            print_success(f"Successfully installed Java {required_version} via SDKMAN at {java_path}")
-                        else:
-                            print_error(f"Failed to install Java {required_version} via SDKMAN - installation returned no path")
-                    except Exception as e:
-                        print_error(f"Failed to install Java {required_version} via SDKMAN: {str(e)}")
+                from init.build import _get_sdkman_identifier, _prompt_user_for_java_installation
+                
+                # Get the SDKMAN identifier that will be installed
+                sdkman_identifier = _get_sdkman_identifier(required_version)
+                if not sdkman_identifier:
+                    print_error(f"Required Java version {required_version} not found and cannot be installed via SDKMAN (unsupported version)")
+                elif _ensure_sdkman_installed():
+                    # Prompt user for confirmation before installing
+                    if _prompt_user_for_java_installation(required_version, sdkman_identifier):
+                        print("   → Installing Java via SDKMAN...")
+                        try:
+                            java_path = _install_jdk_with_sdkman(required_version)
+                            if java_path:
+                                java_source = "sdkman"
+                                print_success(f"Successfully installed Java {required_version} via SDKMAN at {java_path}")
+                            else:
+                                print_error(f"Failed to install Java {required_version} via SDKMAN - installation returned no path")
+                        except Exception as e:
+                            print_error(f"Failed to install Java {required_version} via SDKMAN: {str(e)}")
+                    else:
+                        print_warning("Java installation cancelled by user. Cannot proceed without the required Java version.")
+                        return 1  # Exit with error code
                 else:
                     print_error("SDKMAN not available for Java installation - ensure SDKMAN is installed and configured")
         

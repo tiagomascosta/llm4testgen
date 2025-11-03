@@ -166,11 +166,14 @@ def get_java11_path() -> str:
     except Exception:
         pass
         
-    # Try to install Java 11 using SDKMAN
-    if _ensure_sdkman_installed():
-        jdk_path = _install_jdk_with_sdkman("11")
-        if jdk_path:
-            return jdk_path
+    # Try to install Java 11 using SDKMAN (with user confirmation)
+    from init.build import _get_sdkman_identifier, _prompt_user_for_java_installation
+    sdkman_identifier = _get_sdkman_identifier("11")
+    if sdkman_identifier and _ensure_sdkman_installed():
+        if _prompt_user_for_java_installation("11", sdkman_identifier):
+            jdk_path = _install_jdk_with_sdkman("11")
+            if jdk_path:
+                return jdk_path
         
     return None
 

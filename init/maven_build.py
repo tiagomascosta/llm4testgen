@@ -76,12 +76,16 @@ class MavenBuildManager:
                         if (java_home / 'bin' / 'java').exists():
                             return str(java_home)
         
-        # If not found, try to install with SDKMAN
-        from .build import _ensure_sdkman_installed, _install_jdk_with_sdkman
-        if _ensure_sdkman_installed():
-            jdk_path = _install_jdk_with_sdkman(version)
-            if jdk_path:
-                return jdk_path
+        # If not found, try to install with SDKMAN (with user confirmation)
+        from .build import _ensure_sdkman_installed, _install_jdk_with_sdkman, _get_sdkman_identifier, _prompt_user_for_java_installation
+        sdkman_identifier = _get_sdkman_identifier(version)
+        if sdkman_identifier and _ensure_sdkman_installed():
+            if _prompt_user_for_java_installation(version, sdkman_identifier):
+                jdk_path = _install_jdk_with_sdkman(version)
+                if jdk_path:
+                    return jdk_path
+            else:
+                logger.warning(f"User declined Java installation. Cannot proceed without JDK {version}.")
                 
         return None
 

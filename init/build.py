@@ -6,6 +6,57 @@ from typing import Optional
 
 logger = logging.getLogger(__name__)
 
+def _get_sdkman_identifier(version: str) -> Optional[str]:
+    """
+    Get the SDKMAN identifier for a given Java version.
+    
+    Args:
+        version: The JDK version (e.g., '11.0.12' or '1.11')
+        
+    Returns:
+        Optional[str]: The SDKMAN identifier (e.g., '11.0.27-tem') or None if not supported
+    """
+    # Direct mapping of Java versions to SDKMAN identifiers
+    VERSION_TO_IDENTIFIER = {
+        '6': '6.0.119-zulu',      # Zulu is the only vendor with Java 6
+        '7': '7.0.352-zulu',      # Zulu is the only vendor with Java 7
+        '8': '8.0.452-tem',       # Temurin (formerly AdoptOpenJDK) is well-maintained
+        '11': '11.0.27-tem',      # Temurin is stable for LTS versions
+        '17': '17.0.15-tem',      # Temurin is stable for LTS versions
+        '21': '21.0.7-tem',       # Temurin is stable for LTS versions
+        '24': '24.0.1-tem',       # Temurin is stable for latest versions
+    }
+    
+    # Get the major version number
+    version_num = version.split('.')[-1]  # Get last part of version (e.g., "7" from "1.7")
+    
+    # Get the SDKMAN identifier for this version
+    return VERSION_TO_IDENTIFIER.get(version_num)
+
+def _prompt_user_for_java_installation(version: str, sdkman_identifier: str) -> bool:
+    """
+    Prompt the user for confirmation before installing Java via SDKMAN.
+    
+    Args:
+        version: The required Java version
+        sdkman_identifier: The specific SDKMAN identifier that will be installed
+        
+    Returns:
+        bool: True if user confirms (Y/y), False otherwise
+    """
+    print(f"\n   ⚠️  Required Java version {version} not found.")
+    print(f"   The tool needs to install Java {sdkman_identifier} via SDKMAN.")
+    print(f"   This repository requires Java version {version}.")
+    
+    while True:
+        response = input(f"   Do you want to install Java {sdkman_identifier} now? (Y/N): ").strip().upper()
+        if response in ['Y', 'YES']:
+            return True
+        elif response in ['N', 'NO']:
+            return False
+        else:
+            print("   Please enter 'Y' for Yes or 'N' for No.")
+
 def _ensure_sdkman_installed() -> bool:
     """
     Ensure SDKMAN is installed on the system.
@@ -63,24 +114,11 @@ def _install_jdk_with_sdkman(version: str) -> Optional[str]:
     Returns:
         Optional[str]: Path to the installed JDK if successful, None otherwise
     """
-    # Direct mapping of Java versions to SDKMAN identifiers
-    VERSION_TO_IDENTIFIER = {
-        '6': '6.0.119-zulu',      # Zulu is the only vendor with Java 6
-        '7': '7.0.352-zulu',      # Zulu is the only vendor with Java 7
-        '8': '8.0.452-tem',       # Temurin (formerly AdoptOpenJDK) is well-maintained
-        '11': '11.0.27-tem',      # Temurin is stable for LTS versions
-        '17': '17.0.15-tem',      # Temurin is stable for LTS versions
-        '21': '21.0.7-tem',       # Temurin is stable for LTS versions
-        '24': '24.0.1-tem',       # Temurin is stable for latest versions
-    }
-    
     try:
-        # Get the major version number
-        version_num = version.split('.')[-1]  # Get last part of version (e.g., "7" from "1.7")
-        
         # Get the SDKMAN identifier for this version
-        identifier = VERSION_TO_IDENTIFIER.get(version_num)
+        identifier = _get_sdkman_identifier(version)
         if not identifier:
+            version_num = version.split('.')[-1]
             print(f"   ❌ No SDKMAN identifier found for Java version {version_num}")
             print("   Available versions:")
             print("   - Java 6: 6.0.119-zulu")

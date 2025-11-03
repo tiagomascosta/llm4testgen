@@ -277,11 +277,16 @@ class GradleBuildManager:
                         java_home = d / 'Contents' / 'Home' if 'JavaVirtualMachines' in base else d
                         if (java_home / 'bin' / 'java').exists():
                             return str(java_home)
-        # 3. Try to auto-install with SDKMAN
-        if _ensure_sdkman_installed():
-            jdk_path = _install_jdk_with_sdkman(version)
-            if jdk_path:
-                return jdk_path
+        # 3. Try to auto-install with SDKMAN (with user confirmation)
+        from .build import _get_sdkman_identifier, _prompt_user_for_java_installation, _install_jdk_with_sdkman as _install_jdk_with_sdkman_build, _ensure_sdkman_installed as _ensure_sdkman_installed_build
+        sdkman_identifier = _get_sdkman_identifier(version)
+        if sdkman_identifier and _ensure_sdkman_installed_build():
+            if _prompt_user_for_java_installation(version, sdkman_identifier):
+                jdk_path = _install_jdk_with_sdkman_build(version)
+                if jdk_path:
+                    return jdk_path
+            else:
+                logger.warning(f"User declined Java installation. Cannot proceed without JDK {version}.")
         logger.warning(f"Could not find or install JDK {version} in SDKMAN or common system locations.")
         return None
 
