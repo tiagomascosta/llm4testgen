@@ -28,6 +28,7 @@ experiments/src/output/
 experiments/src/results/
 experiments/src/**/*.json
 experiments/src/**/*.txt
+others/
 # Exclude v1 folder from experiments/analysis
 experiments/analysis/v1/
 # Exclude specific subfolders and files from experiments/dataset
